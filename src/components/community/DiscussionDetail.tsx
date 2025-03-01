@@ -31,6 +31,8 @@ export function DiscussionDetail({ discussionId, onBack }: DiscussionDetailProps
   const [isLiked, setIsLiked] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [replyLikes, setReplyLikes] = useState<Record<string, boolean>>({});
+  const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -48,6 +50,14 @@ export function DiscussionDetail({ discussionId, onBack }: DiscussionDetailProps
       if (user) {
         const liked = await checkIfLiked(user.id, discussionId);
         setIsLiked(liked);
+        
+        // Check if user has liked any replies
+        const replyLikesStatus: Record<string, boolean> = {};
+        for (const reply of repliesData) {
+          const replyLiked = await checkIfLiked(user.id, undefined, reply.id);
+          replyLikesStatus[reply.id] = replyLiked;
+        }
+        setReplyLikes(replyLikesStatus);
       }
     } catch (error) {
       console.error('Error loading discussion:', error);
@@ -129,6 +139,60 @@ export function DiscussionDetail({ discussionId, onBack }: DiscussionDetailProps
 
   const handleSortChange = () => {
     setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest');
+  };
+
+  const handleReplyLikeToggle = async (replyId: string) => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'Please sign in to like replies.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const isReplyLiked = replyLikes[replyId] || false;
+      
+      if (isReplyLiked) {
+        await removeLike(user.id, undefined, replyId);
+        setReplyLikes(prev => ({ ...prev, [replyId]: false }));
+        setReplies(prev => prev.map(reply =>
+          reply.id === replyId ? { ...reply, likes_count: Math.max(0, (reply.likes_count || 0) - 1) } : reply
+        ));
+      } else {
+        await addLike(user.id, undefined, replyId);
+        setReplyLikes(prev => ({ ...prev, [replyId]: true }));
+        setReplies(prev => prev.map(reply =>
+          reply.id === replyId ? { ...reply, likes_count: (reply.likes_count || 0) + 1 } : reply
+        ));
+      }
+    } catch (error) {
+      console.error('Error toggling reply like:', error);
+      
+      // Provide more specific error message based on the error
+      let errorMessage = 'Failed to update reply like status. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Invalid parameters')) {
+          errorMessage = 'Invalid parameters for like operation. Please try again later.';
+        } else if (error.message.includes('duplicate key')) {
+          errorMessage = 'You have already liked this reply.';
+        } else if (error.message.includes('violates foreign key constraint')) {
+          errorMessage = 'The reply may have been deleted.';
+        }
+      }
+      
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleReplyToReply = (replyId: string) => {
+    setActiveReplyId(activeReplyId === replyId ? null : replyId);
   };
 
   if (isLoading) {
@@ -232,19 +296,117 @@ export function DiscussionDetail({ discussionId, onBack }: DiscussionDetailProps
           </div>
         ) : (
           <div className="space-y-4">
-            {replies.map(reply => (
-              <Card key={reply.id} className="p-6">
-                <div className="flex items-center text-sm text-gray-500 mb-3">
-                  <Avatar className="h-6 w-6 mr-2">
-                    <AvatarFallback>{reply.author[0]?.toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <span>{reply.author}</span>
-                  <span className="mx-2">•</span>
-                  <span>{formatDate(reply.created_at)}</span>
+            {replies
+              // Filter to only show top-level replies (those without a parent)
+              .filter(reply => !reply.parent_reply_id)
+              .map(reply => (
+                <div key={reply.id}>
+                  <Card className="p-6">
+                    <div className="flex items-center text-sm text-gray-500 mb-3">
+                      <Avatar className="h-6 w-6 mr-2">
+                        <AvatarFallback>{reply.author[0]?.toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <span>{reply.author}</span>
+                      <span className="mx-2">•</span>
+                      <span>{formatDate(reply.created_at)}</span>
+                    </div>
+                    <p className="text-gray-700 whitespace-pre-line">{reply.content}</p>
+                    
+                    <div className="flex items-center mt-4 pt-2 border-t border-gray-100">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className={`flex items-center ${replyLikes[reply.id] ? 'text-primary' : 'text-gray-500'} mr-4`}
+                        onClick={() => handleReplyLikeToggle(reply.id)}
+                        disabled={!user}
+                      >
+                        <ThumbsUp className={`h-4 w-4 mr-1 ${replyLikes[reply.id] ? 'fill-primary' : ''}`} />
+                        <span>{reply.likes_count || 0} likes</span>
+                      </Button>
+                      
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="flex items-center text-gray-500"
+                        onClick={() => handleReplyToReply(reply.id)}
+                        disabled={!user}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-1" />
+                        <span>Reply</span>
+                      </Button>
+                    </div>
+                    
+                    {activeReplyId === reply.id && user && (
+                      <div className="mt-4 pl-4 border-l-2 border-gray-200">
+                        <h5 className="text-sm font-medium mb-2">Reply to {reply.author}</h5>
+                        <ReplyForm 
+                          discussionId={discussionId} 
+                          replyToId={reply.id}
+                          onSuccess={() => {
+                            setActiveReplyId(null);
+                            handleReplySuccess();
+                          }} 
+                        />
+                      </div>
+                    )}
+                  </Card>
+                  
+                  {/* Nested replies */}
+                  {replies
+                    .filter(nestedReply => nestedReply.parent_reply_id === reply.id)
+                    .map(nestedReply => (
+                      <Card key={nestedReply.id} className="p-6 mt-2 ml-8 border-l-4 border-l-gray-200">
+                        <div className="flex items-center text-sm text-gray-500 mb-3">
+                          <Avatar className="h-6 w-6 mr-2">
+                            <AvatarFallback>{nestedReply.author[0]?.toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <span>{nestedReply.author}</span>
+                          <span className="mx-2">•</span>
+                          <span>{formatDate(nestedReply.created_at)}</span>
+                        </div>
+                        <p className="text-gray-700 whitespace-pre-line">{nestedReply.content}</p>
+                        
+                        <div className="flex items-center mt-4 pt-2 border-t border-gray-100">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className={`flex items-center ${replyLikes[nestedReply.id] ? 'text-primary' : 'text-gray-500'} mr-4`}
+                            onClick={() => handleReplyLikeToggle(nestedReply.id)}
+                            disabled={!user}
+                          >
+                            <ThumbsUp className={`h-4 w-4 mr-1 ${replyLikes[nestedReply.id] ? 'fill-primary' : ''}`} />
+                            <span>{nestedReply.likes_count || 0} likes</span>
+                          </Button>
+                          
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="flex items-center text-gray-500"
+                            onClick={() => handleReplyToReply(nestedReply.id)}
+                            disabled={!user}
+                          >
+                            <MessageSquare className="h-4 w-4 mr-1" />
+                            <span>Reply</span>
+                          </Button>
+                        </div>
+                        
+                        {activeReplyId === nestedReply.id && user && (
+                          <div className="mt-4 pl-4 border-l-2 border-gray-200">
+                            <h5 className="text-sm font-medium mb-2">Reply to {nestedReply.author}</h5>
+                            <ReplyForm 
+                              discussionId={discussionId} 
+                              replyToId={nestedReply.id}
+                              onSuccess={() => {
+                                setActiveReplyId(null);
+                                handleReplySuccess();
+                              }} 
+                            />
+                          </div>
+                        )}
+                      </Card>
+                    ))}
                 </div>
-                <p className="text-gray-700 whitespace-pre-line">{reply.content}</p>
-              </Card>
-            ))}
+              ))}
           </div>
         )}
       </div>

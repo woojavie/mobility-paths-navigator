@@ -25,10 +25,11 @@ type FormValues = z.infer<typeof formSchema>;
 
 interface ReplyFormProps {
   discussionId: string;
+  replyToId?: string;
   onSuccess?: () => void;
 }
 
-export function ReplyForm({ discussionId, onSuccess }: ReplyFormProps) {
+export function ReplyForm({ discussionId, replyToId, onSuccess }: ReplyFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -53,11 +54,21 @@ export function ReplyForm({ discussionId, onSuccess }: ReplyFormProps) {
     setIsSubmitting(true);
     
     try {
+      let content = values.content;
+      
+      // If replying to another reply, add a mention
+      if (replyToId) {
+        // We could fetch the author of the reply being responded to
+        // For now, we'll just indicate it's a reply to another comment
+        content = `[Reply] ${content}`;
+      }
+      
       await createReply({
         discussion_id: discussionId,
-        content: values.content,
+        content,
         user_id: user.id,
         author: user.email?.split('@')[0] || 'Anonymous',
+        parent_reply_id: replyToId
       });
       
       toast({
@@ -92,8 +103,8 @@ export function ReplyForm({ discussionId, onSuccess }: ReplyFormProps) {
             <FormItem>
               <FormControl>
                 <Textarea 
-                  placeholder="Write your reply..." 
-                  className="min-h-[100px]"
+                  placeholder={replyToId ? "Write your reply..." : "Add to the discussion..."} 
+                  className={replyToId ? "min-h-[80px]" : "min-h-[100px]"}
                   {...field} 
                 />
               </FormControl>

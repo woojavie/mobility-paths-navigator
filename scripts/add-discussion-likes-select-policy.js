@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const { createClient } = require('@supabase/supabase-js');
-const readline = require('readline');
+import { createClient } from '@supabase/supabase-js';
+import readline from 'readline';
 
 // Create readline interface for user input
 const rl = readline.createInterface({
@@ -21,7 +21,7 @@ function promptForCredentials() {
 }
 
 async function main() {
-  console.log('Adding missing SELECT policy for discussion_likes table...');
+  console.log('Checking and fixing discussion_likes table permissions...');
 
   try {
     // Get Supabase credentials
@@ -30,17 +30,26 @@ async function main() {
     // Initialize Supabase client with service role key
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Simple SQL to add the policy
-    const sql = `
-      CREATE POLICY IF NOT EXISTS "Anyone can read discussion likes" 
-      ON public.discussion_likes FOR SELECT USING (true);
-    `;
+    // Test if we can access the discussion_likes table
+    console.log('Testing access to discussion_likes table...');
+    const { data, error } = await supabase
+      .from('discussion_likes')
+      .select('*')
+      .limit(1);
     
-    // Execute SQL directly
-    const { error } = await supabase.sql(sql);
-    if (error) throw error;
-    
-    console.log('✅ Policy added successfully! Like/unlike functionality should now work correctly.');
+    if (error) {
+      if (error.code === 'PGRST301') {
+        console.log('Confirmed: Permission issue detected. Please run the following SQL in your Supabase SQL editor:');
+        console.log('\n-------------------------------------------');
+        console.log('CREATE POLICY "Anyone can read discussion likes" ON public.discussion_likes FOR SELECT USING (true);');
+        console.log('-------------------------------------------\n');
+        console.log('After running this SQL, the like/unlike functionality should work correctly.');
+      } else {
+        console.error('Unexpected error:', error.message);
+      }
+    } else {
+      console.log('✅ No permission issues detected. The discussion_likes table is accessible.');
+    }
     
   } catch (error) {
     console.error('❌ Error:', error.message);

@@ -206,6 +206,7 @@ export type Database = {
           likes_count: number | null
           updated_at: string | null
           user_id: string
+          parent_reply_id: string | null
         }
         Insert: {
           author: string
@@ -216,6 +217,7 @@ export type Database = {
           likes_count?: number | null
           updated_at?: string | null
           user_id: string
+          parent_reply_id?: string | null
         }
         Update: {
           author?: string
@@ -226,6 +228,7 @@ export type Database = {
           likes_count?: number | null
           updated_at?: string | null
           user_id?: string
+          parent_reply_id?: string | null
         }
         Relationships: [
           {
@@ -240,6 +243,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discussion_replies_parent_reply_id_fkey"
+            columns: ["parent_reply_id"]
+            isOneToOne: false
+            referencedRelation: "discussion_replies"
             referencedColumns: ["id"]
           }
         ]

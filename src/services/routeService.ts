@@ -41,14 +41,84 @@ const calculateDistance = (point1: LatLng, point2: LatLng): number => {
   return R * c; // Distance in meters
 };
 
+// export const calculateRoute = async (
+//   origin: LatLng | string,
+//   destination: LatLng | string,
+//   preferences: RoutePreferences
+// ): Promise<RouteResult | null> => {
+//   try {
+//     if (!window.google) {
+//       throw new Error('Google Maps not loaded');
+//     }
+
+//     console.log('Starting route calculation...');
+//     console.log('Origin:', origin);
+//     console.log('Destination:', destination);
+
+//     // Convert string addresses to coordinates if needed
+//     const originCoords = typeof origin === 'string' 
+//       ? await geocodeAddress(origin)
+//       : origin;
+    
+//     const destinationCoords = typeof destination === 'string'
+//       ? await geocodeAddress(destination)
+//       : destination;
+
+//     if (!originCoords || !destinationCoords) {
+//       throw new Error('Could not find location coordinates');
+//     }
+
+//     console.log('Coordinates resolved:', { originCoords, destinationCoords });
+
+//     // Calculate straight-line distance
+//     const distanceInMeters = calculateDistance(originCoords, destinationCoords);
+    
+//     // Assume average walking speed of 1.4 meters per second (5 km/h)
+//     const durationInSeconds = Math.ceil(distanceInMeters / 1.4);
+
+//     // Create a simple path with just the start and end points
+//     const path = [originCoords, destinationCoords];
+
+//     // Create a single step for the route
+//     const steps: RouteStep[] = [{
+//       instructions: `Walk to destination`,
+//       distance: formatDistance(distanceInMeters),
+//       duration: formatDuration(durationInSeconds.toString())
+//     }];
+
+//     // Add accessibility warning if needed
+//     if (preferences.wheelchairAccessible || preferences.avoidStairs) {
+//       steps[0].instructions = '⚠️ Note: This is a direct route and may not account for accessibility barriers. Please verify the path is accessible.';
+//     }
+
+//     return {
+//       steps,
+//       totalDistance: formatDistance(distanceInMeters),
+//       totalDuration: formatDuration(durationInSeconds.toString()),
+//       path
+//     };
+
+//   } catch (error) {
+//     console.error('Error calculating route:', error);
+    
+//     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+//     toast({
+//       title: "Error calculating route",
+//       description: errorMessage,
+//       variant: "destructive"
+//     });
+//     return null;
+//   }
+// };
+
 export const calculateRoute = async (
   origin: LatLng | string,
   destination: LatLng | string,
   preferences: RoutePreferences
 ): Promise<RouteResult | null> => {
   try {
-    if (!window.google) {
-      throw new Error('Google Maps not loaded');
+    if (!window.google || !google.maps.DirectionsService) {
+      throw new Error('Google Maps API not loaded');
     }
 
     console.log('Starting route calculation...');
@@ -70,46 +140,54 @@ export const calculateRoute = async (
 
     console.log('Coordinates resolved:', { originCoords, destinationCoords });
 
-    // Calculate straight-line distance
-    const distanceInMeters = calculateDistance(originCoords, destinationCoords);
-    
-    // Assume average walking speed of 1.4 meters per second (5 km/h)
-    const durationInSeconds = Math.ceil(distanceInMeters / 1.4);
+    // Initialize Google Maps Directions Service
+    const directionsService = new google.maps.DirectionsService();
 
-    // Create a simple path with just the start and end points
-    const path = [originCoords, destinationCoords];
+    const request: google.maps.DirectionsRequest = {
+      origin: originCoords,
+      destination: destinationCoords,
+      travelMode: google.maps.TravelMode.WALKING,
+    };
 
-    // Create a single step for the route
-    const steps: RouteStep[] = [{
-      instructions: `Walk to destination`,
-      distance: formatDistance(distanceInMeters),
-      duration: formatDuration(durationInSeconds.toString())
-    }];
+    const response = await new Promise<google.maps.DirectionsResult>((resolve, reject) => {
+      directionsService.route(request, (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK && result) {
+          resolve(result);
+        } else {
+          reject(new Error('Directions request failed with status: ' + status));
+        }
+      });
+    });
 
-    // Add accessibility warning if needed
-    if (preferences.wheelchairAccessible || preferences.avoidStairs) {
-      steps[0].instructions = '⚠️ Note: This is a direct route and may not account for accessibility barriers. Please verify the path is accessible.';
-    }
+    // Extract steps and path from response
+    const route = response.routes[0].legs[0];
+    const steps: RouteStep[] = route.steps.map(step => ({
+      instructions: step.instructions,
+      distance: step.distance.text,
+      duration: step.duration.text,
+    }));
+
+    const path: LatLng[] = route.steps.flatMap(step => step.path.map(p => ({ lat: p.lat(), lng: p.lng() })));
 
     return {
       steps,
-      totalDistance: formatDistance(distanceInMeters),
-      totalDuration: formatDuration(durationInSeconds.toString()),
-      path
+      totalDistance: route.distance.text,
+      totalDuration: route.duration.text,
+      path,
     };
 
   } catch (error) {
     console.error('Error calculating route:', error);
     
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     toast({
       title: "Error calculating route",
-      description: errorMessage,
+      description: error instanceof Error ? error.message : "Unknown error",
       variant: "destructive"
     });
     return null;
   }
 };
+
 
 const geocodeAddress = async (address: string): Promise<LatLng | null> => {
   try {

@@ -62,7 +62,7 @@ export const useGoogleMaps = () => {
         if (!isMounted) return;
         
         const map = new googleMaps.maps.Map(mapRef.current, {
-          center: { lat: 40.7128, lng: -74.0060 },
+          center: { lat: 49.2666656, lng: -123.249999 },
           zoom: 14,
           mapTypeId: googleMaps.maps.MapTypeId.ROADMAP,
           mapTypeControl: false,

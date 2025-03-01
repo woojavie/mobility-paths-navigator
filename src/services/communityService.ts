@@ -40,6 +40,7 @@ export interface Reply {
   created_at: string;
   updated_at: string;
   likes_count?: number;
+  parent_reply_id?: string;
 }
 
 export interface Like {

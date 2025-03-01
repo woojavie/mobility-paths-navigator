@@ -1,4 +1,3 @@
-
 import { useRef, useEffect, useState } from 'react';
 import { 
   MapPin, 
@@ -8,7 +7,7 @@ import {
   ArrowRight, 
   Search,
   Accessibility,
-  LucideStairs,
+  Stairs,
   ArrowUp,
   Construction,
   UserRound
@@ -173,7 +172,7 @@ const AccessMap = () => {
                 <div className="flex items-center space-x-2">
                   <Checkbox id="avoid-stairs" />
                   <Label htmlFor="avoid-stairs" className="flex items-center">
-                    <LucideStairs className="h-4 w-4 mr-2 text-accessOrange" />
+                    <Stairs className="h-4 w-4 mr-2 text-accessOrange" />
                     Avoid stairs
                   </Label>
                 </div>

@@ -177,17 +177,39 @@ const AccessMap = () => {
     if (!mapInstance) return;
 
     try {
+      // Validate end location
+      if (!endLocation || endLocation.trim() === '') {
+        toast({
+          title: "Missing destination",
+          description: "Please enter a destination location",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Clear existing route if any
       if (routePolyline) {
         routePolyline.setMap(null);
         setRoutePolyline(null);
       }
 
-      const route = await calculateRoute(
-        startLocation === 'Current location' 
+      let origin: LatLng | string;
+      try {
+        origin = startLocation === 'Current location'
           ? await getCurrentPosition()
-          : startLocation,
-        endLocation,
+          : startLocation.trim();
+      } catch (error) {
+        toast({
+          title: "Location error",
+          description: "Could not get current location. Please enter a start location manually.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const route = await calculateRoute(
+        origin,
+        endLocation.trim(),
         preferences
       );
 

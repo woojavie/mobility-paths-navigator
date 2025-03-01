@@ -129,6 +129,9 @@ CREATE POLICY "Anyone can read reviews" ON public.reviews
 CREATE POLICY "Anyone can read discussion replies" ON public.discussion_replies
   FOR SELECT USING (true);
 
+CREATE POLICY "Anyone can read discussion likes" ON public.discussion_likes
+  FOR SELECT USING (true);
+
 -- Only authenticated users can insert
 CREATE POLICY "Authenticated users can insert discussions" ON public.discussions
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');

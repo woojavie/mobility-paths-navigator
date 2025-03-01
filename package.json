@@ -15,7 +15,9 @@
     "android:build": "npm run build && cap sync && cap build android",
     "ios:dev": "npm run build && cap sync && cap open ios",
     "ios:build": "npm run build && cap sync && cap build ios",
-    "setup:community": "node --no-deprecation scripts/setup-community-tables.js"
+    "setup:community": "node --no-deprecation scripts/setup-community-tables.js",
+    "setup:profiles": "node --no-deprecation scripts/setup-profiles-table.js",
+    "fix:likes-policy": "node --no-deprecation scripts/add-discussion-likes-select-policy.js"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.1",

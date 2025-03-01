@@ -1,116 +1,137 @@
-import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
+import { supabase } from '@/integrations/supabase/client';
 
-type AccessibilityPoint = Database["public"]["Tables"]["accessibility_points"]["Insert"];
-type AccessibilityIssue = Database["public"]["Tables"]["accessibility_issues"]["Insert"];
+// Types
+export interface Discussion {
+  id: string;
+  title: string;
+  content: string;
+  user_id: string;
+  author: string;
+  created_at: string;
+  replies_count?: number;
+  likes_count?: number;
+}
 
-export const communityService = {
-  // Accessibility Points
-  async getAccessibilityPoints() {
-    const { data, error } = await supabase
-      .from('accessibility_points')
-      .select('*')
-      .order('created_at', { ascending: false });
+export interface Review {
+  id: string;
+  place: string;
+  location: string;
+  rating: number;
+  text: string;
+  user_id: string;
+  author: string;
+  created_at: string;
+}
 
-    if (error) throw error;
-    return data;
-  },
+export interface Member {
+  id: string;
+  username: string;
+  avatar_url?: string;
+  created_at: string;
+  contributions_count?: number;
+}
 
-  async addAccessibilityPoint(point: Omit<AccessibilityPoint, 'id' | 'created_at' | 'updated_at'>) {
-    const { data, error } = await supabase
-      .from('accessibility_points')
-      .insert({
-        ...point,
-        updated_at: new Date().toISOString(),
-        verified: false
-      })
-      .select()
-      .single();
+// Discussions
+export const fetchDiscussions = async () => {
+  const { data, error } = await supabase
+    .from('discussions')
+    .select('*')
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching discussions:', error);
+    throw error;
+  }
+  
+  return data as Discussion[];
+};
 
-    if (error) throw error;
-    return data;
-  },
+export const createDiscussion = async (discussion: Omit<Discussion, 'id' | 'created_at' | 'replies_count' | 'likes_count'>) => {
+  const { data, error } = await supabase
+    .from('discussions')
+    .insert([discussion])
+    .select();
+    
+  if (error) {
+    console.error('Error creating discussion:', error);
+    throw error;
+  }
+  
+  return data[0] as Discussion;
+};
 
-  async updateAccessibilityPoint(id: string, updates: Partial<AccessibilityPoint>) {
-    const { data, error } = await supabase
-      .from('accessibility_points')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .single();
+// Reviews
+export const fetchReviews = async () => {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('*')
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching reviews:', error);
+    throw error;
+  }
+  
+  return data as Review[];
+};
 
-    if (error) throw error;
-    return data;
-  },
+export const createReview = async (review: Omit<Review, 'id' | 'created_at'>) => {
+  const { data, error } = await supabase
+    .from('reviews')
+    .insert([review])
+    .select();
+    
+  if (error) {
+    console.error('Error creating review:', error);
+    throw error;
+  }
+  
+  return data[0] as Review;
+};
 
-  // Accessibility Issues
-  async getAccessibilityIssues() {
-    const { data, error } = await supabase
-      .from('accessibility_issues')
-      .select('*')
-      .order('created_at', { ascending: false });
+// Members
+export const fetchMembers = async () => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, avatar_url, created_at')
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching members:', error);
+    throw error;
+  }
+  
+  // Transform to Member type
+  return data.map(profile => ({
+    id: profile.id,
+    username: profile.username || 'Anonymous',
+    avatar_url: profile.avatar_url,
+    created_at: profile.created_at,
+    contributions_count: 0, // This would need to be calculated from other tables
+  })) as Member[];
+};
 
-    if (error) throw error;
-    return data;
-  },
-
-  async reportAccessibilityIssue(issue: Omit<AccessibilityIssue, 'id' | 'created_at' | 'updated_at'>) {
-    const { data, error } = await supabase
-      .from('accessibility_issues')
-      .insert({
-        ...issue,
-        updated_at: new Date().toISOString(),
-        verified: false
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  async updateAccessibilityIssue(id: string, updates: Partial<AccessibilityIssue>) {
-    const { data, error } = await supabase
-      .from('accessibility_issues')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  // Nearby Points and Issues
-  async getNearbyPoints(latitude: number, longitude: number, radiusInMeters: number = 1000) {
-    const { data, error } = await supabase
-      .from('accessibility_points')
-      .select('*')
-      .filter('latitude', 'gte', latitude - 0.01)
-      .filter('latitude', 'lte', latitude + 0.01)
-      .filter('longitude', 'gte', longitude - 0.01)
-      .filter('longitude', 'lte', longitude + 0.01);
-
-    if (error) throw error;
-    return data;
-  },
-
-  async getNearbyIssues(latitude: number, longitude: number, radiusInMeters: number = 1000) {
-    const { data, error } = await supabase
-      .from('accessibility_issues')
-      .select('*')
-      .filter('latitude', 'gte', latitude - 0.01)
-      .filter('latitude', 'lte', latitude + 0.01)
-      .filter('longitude', 'gte', longitude - 0.01)
-      .filter('longitude', 'lte', longitude + 0.01);
-
-    if (error) throw error;
-    return data;
+// Utility function to format date
+export const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - date.getTime());
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) {
+    return 'Today';
+  } else if (diffDays === 1) {
+    return 'Yesterday';
+  } else if (diffDays < 7) {
+    return `${diffDays} days ago`;
+  } else if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
+  } else if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30);
+    return `${months} ${months === 1 ? 'month' : 'months'} ago`;
+  } else {
+    const years = Math.floor(diffDays / 365);
+    return `${years} ${years === 1 ? 'year' : 'years'} ago`;
   }
 }; 

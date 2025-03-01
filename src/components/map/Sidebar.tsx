@@ -1,9 +1,14 @@
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AccessibilityPoint, GoogleMapType, PreferencesType } from './types';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Search, Navigation2 } from 'lucide-react';
+import { AccessibilityPoint, GoogleMapType, PreferencesType, AccessibilityIssue } from './types';
 import RouteTab from './RouteTab';
 import ExploreTab from './ExploreTab';
 import SavedTab from './SavedTab';
+import { CommunityTab } from './CommunityTab';
 
 type SidebarProps = {
   isSidebarOpen: boolean;
@@ -20,7 +25,12 @@ type SidebarProps = {
   setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   handleSearchPlaces: () => void;
   accessibilityPoints: AccessibilityPoint[];
+  accessibilityIssues: AccessibilityIssue[];
   mapInstance: GoogleMapType | null;
+  onPointClick?: (point: AccessibilityPoint) => void;
+  onIssueClick?: (issue: AccessibilityIssue) => void;
+  onPointsUpdate?: () => void;
+  onIssuesUpdate?: () => void;
 };
 
 const Sidebar = ({
@@ -38,22 +48,49 @@ const Sidebar = ({
   setSearchQuery,
   handleSearchPlaces,
   accessibilityPoints,
-  mapInstance
+  accessibilityIssues,
+  mapInstance,
+  onPointClick = () => {},
+  onIssueClick = () => {},
+  onPointsUpdate = () => {},
+  onIssuesUpdate = () => {}
 }: SidebarProps) => {
+  const handlePointClick = (point: AccessibilityPoint) => {
+    if (mapInstance) {
+      mapInstance.setCenter({ lat: Number(point.latitude), lng: Number(point.longitude) });
+      mapInstance.setZoom(18);
+    }
+    onPointClick(point);
+  };
+
+  const handleIssueClick = (issue: AccessibilityIssue) => {
+    if (mapInstance) {
+      mapInstance.setCenter({ lat: Number(issue.latitude), lng: Number(issue.longitude) });
+      mapInstance.setZoom(18);
+    }
+    onIssueClick(issue);
+  };
+
   return (
     <div 
       className={`bg-white border-l border-gray-200 h-full transition-all duration-300 ease-in-out flex flex-col ${
         isSidebarOpen ? 'w-full md:w-96' : 'w-0 overflow-hidden'
       }`}
     >
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <div className="px-4 py-3 border-b border-gray-200">
-          <TabsList className="w-full">
-            <TabsTrigger value="route" className="flex-1">Route</TabsTrigger>
-            <TabsTrigger value="explore" className="flex-1">Explore</TabsTrigger>
-            <TabsTrigger value="saved" className="flex-1">Saved</TabsTrigger>
-          </TabsList>
-        </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="route" className="flex items-center gap-2">
+            <Navigation2 className="h-4 w-4" />
+            Route
+          </TabsTrigger>
+          <TabsTrigger value="search" className="flex items-center gap-2">
+            <Search className="h-4 w-4" />
+            Search
+          </TabsTrigger>
+          <TabsTrigger value="community">
+            Community
+          </TabsTrigger>
+        </TabsList>
         
         <TabsContent value="route">
           <RouteTab 
@@ -67,18 +104,34 @@ const Sidebar = ({
           />
         </TabsContent>
         
-        <TabsContent value="explore">
-          <ExploreTab 
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            handleSearchPlaces={handleSearchPlaces}
-            accessibilityPoints={accessibilityPoints}
-            mapInstance={mapInstance}
-          />
+        <TabsContent value="search">
+          <div className="p-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="search">Search Accessibility Points</Label>
+              <div className="flex space-x-2">
+                <Input
+                  id="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by name or description"
+                />
+                <Button onClick={handleSearchPlaces}>
+                  Search
+                </Button>
+              </div>
+            </div>
+          </div>
         </TabsContent>
         
-        <TabsContent value="saved">
-          <SavedTab />
+        <TabsContent value="community">
+          <CommunityTab
+            accessibilityPoints={accessibilityPoints}
+            accessibilityIssues={accessibilityIssues}
+            onPointClick={handlePointClick}
+            onIssueClick={handleIssueClick}
+            onPointsUpdate={onPointsUpdate}
+            onIssuesUpdate={onIssuesUpdate}
+          />
         </TabsContent>
       </Tabs>
     </div>

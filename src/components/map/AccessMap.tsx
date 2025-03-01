@@ -16,6 +16,17 @@ import MapLoading from './MapLoading';
 import Sidebar from './Sidebar';
 import { calculateRoute, RouteResult } from '@/services/routeService';
 import DirectionsPanel from './DirectionsPanel';
+import { ContributionDialog } from './ContributionDialog';
+import { Plus, MapPin, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+// Add type for origin
+type OriginType = google.maps.LatLng | string;
+
+type Coordinates = {
+  lat: number;
+  lng: number;
+};
 
 const AccessMap = () => {
   const { mapRef, mapInstance, infoWindow, mapLoaded, loading } = useGoogleMaps();
@@ -35,65 +46,61 @@ const AccessMap = () => {
   });
   const [currentRoute, setCurrentRoute] = useState<RouteResult | null>(null);
   const [routePolyline, setRoutePolyline] = useState<google.maps.Polyline | null>(null);
+  const [contributionDialog, setContributionDialog] = useState<{
+    isOpen: boolean;
+    type: 'point' | 'issue';
+    location: { lat: number; lng: number } | null;
+  }>({
+    isOpen: false,
+    type: 'point',
+    location: null
+  });
+
+  // Extract fetchAccessibilityData to be reusable
+  const fetchAccessibilityData = async () => {
+    try {
+      // Fetch accessibility points
+      const { data: pointsData, error: pointsError } = await supabase
+        .from('accessibility_points')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (pointsError) throw pointsError;
+      
+      // Fetch accessibility issues
+      const { data: issuesData, error: issuesError } = await supabase
+        .from('accessibility_issues')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (issuesError) throw issuesError;
+      
+      // Cast the types properly to match our defined types
+      setAccessibilityPoints(pointsData?.map(point => ({
+        ...point,
+        type: point.type as AccessibilityPointType,
+        description: point.description || null,
+      })) || []);
+      
+      setAccessibilityIssues(issuesData?.map(issue => ({
+        ...issue,
+        type: issue.type as AccessibilityIssueType,
+        description: issue.description || null,
+        end_date: issue.end_date || null,
+      })) || []);
+      
+    } catch (error) {
+      console.error("Error fetching accessibility data:", error);
+      toast({
+        title: "Error loading accessibility data",
+        description: "Please try again later.",
+        variant: "destructive"
+      });
+    }
+  };
   
   // Fetch accessibility data from Supabase
   useEffect(() => {
-    const fetchAccessibilityData = async () => {
-      try {
-        console.log('Fetching accessibility data from Supabase...');
-        
-        // Fetch accessibility points
-        const pointsQuery = supabase.from('accessibility_points').select('*');
-        console.log('Executing points query:', pointsQuery);
-        const { data: pointsData, error: pointsError } = await pointsQuery;
-        
-        if (pointsError) {
-          console.error('Error fetching accessibility points:', pointsError);
-          throw pointsError;
-        }
-        
-        console.log('Received points data:', pointsData);
-        
-        // Fetch accessibility issues
-        const issuesQuery = supabase.from('accessibility_issues').select('*');
-        console.log('Executing issues query:', issuesQuery);
-        const { data: issuesData, error: issuesError } = await issuesQuery;
-        
-        if (issuesError) {
-          console.error('Error fetching accessibility issues:', issuesError);
-          throw issuesError;
-        }
-        
-        console.log('Received issues data:', issuesData);
-        
-        // Cast the types properly to match our defined types
-        setAccessibilityPoints(pointsData?.map(point => ({
-          ...point,
-          type: point.type as AccessibilityPointType,
-          description: point.description || null,
-        })) || []);
-        
-        setAccessibilityIssues(issuesData?.map(issue => ({
-          ...issue,
-          type: issue.type as AccessibilityIssueType,
-          description: issue.description || null,
-          end_date: issue.end_date || null,
-        })) || []);
-        
-      } catch (error) {
-        console.error("Error fetching accessibility data:", error);
-        console.error("Error details:", {
-          message: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined
-        });
-        toast({
-          title: "Error loading accessibility data",
-          description: "Please check the console for details and try again later.",
-          variant: "destructive"
-        });
-      }
-    };
-    
     if (mapLoaded) {
       fetchAccessibilityData();
     }
@@ -219,7 +226,20 @@ const AccessMap = () => {
         routePolyline.setMap(null);
         setRoutePolyline(null);
       }
-      setCurrentRoute(null);
+
+      let origin: string | Coordinates;
+      try {
+        origin = startLocation === 'Current location'
+          ? await getCurrentPosition()
+          : startLocation.trim();
+      } catch (error) {
+        toast({
+          title: "Location error",
+          description: "Could not get current location. Please enter a start location manually.",
+          variant: "destructive"
+        });
+        return;
+      }
 
       const route = await calculateRoute(originCoords, endLocation, preferences);
       
@@ -265,7 +285,7 @@ const AccessMap = () => {
     await calculateAndDisplayRoute();
   }, [mapInstance, startLocation, endLocation, calculateAndDisplayRoute]);
 
-  const getCurrentPosition = (): Promise<{ lat: number; lng: number }> => {
+  const getCurrentPosition = (): Promise<Coordinates> => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
         reject(new Error('Geolocation is not supported'));
@@ -306,6 +326,114 @@ const AccessMap = () => {
     setCurrentRoute(null);
   }, [routePolyline]);
   
+  // Add click handler for map
+  useEffect(() => {
+    if (mapInstance) {
+      mapInstance.addListener('click', (e: google.maps.MapMouseEvent) => {
+        const position = e.latLng;
+        if (position) {
+          const location = {
+            lat: position.lat(),
+            lng: position.lng()
+          };
+          setContributionDialog(prev => ({
+            ...prev,
+            location
+          }));
+        }
+      });
+    }
+  }, [mapInstance]);
+
+  // Add function to open contribution dialog
+  const openContributionDialog = (type: 'point' | 'issue') => {
+    if (!contributionDialog.location) {
+      toast({
+        title: "Select location",
+        description: "Click on the map to select a location first.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setContributionDialog(prev => ({
+      ...prev,
+      isOpen: true,
+      type
+    }));
+  };
+
+  // Add function to close contribution dialog
+  const closeContributionDialog = () => {
+    setContributionDialog(prev => ({
+      ...prev,
+      isOpen: false
+    }));
+  };
+
+  // Add real-time subscription for points and issues
+  useEffect(() => {
+    if (!mapLoaded) return;
+
+    // Subscribe to accessibility points changes
+    const pointsSubscription = supabase
+      .channel('accessibility_points_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'accessibility_points'
+        },
+        () => {
+          // Refresh points data
+          fetchAccessibilityData();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to accessibility issues changes
+    const issuesSubscription = supabase
+      .channel('accessibility_issues_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'accessibility_issues'
+        },
+        () => {
+          // Refresh issues data
+          fetchAccessibilityData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      pointsSubscription.unsubscribe();
+      issuesSubscription.unsubscribe();
+    };
+  }, [mapLoaded]);
+
+  // Handle point click from community tab
+  const handlePointClick = useCallback((point: AccessibilityPoint) => {
+    if (mapInstance && infoWindow) {
+      const contentString = createAccessibilityPointInfoContent(point);
+      infoWindow.setContent(contentString);
+      infoWindow.setPosition({ lat: Number(point.latitude), lng: Number(point.longitude) });
+      infoWindow.open(mapInstance);
+    }
+  }, [mapInstance, infoWindow]);
+
+  // Handle issue click from community tab
+  const handleIssueClick = useCallback((issue: AccessibilityIssue) => {
+    if (mapInstance && infoWindow) {
+      const contentString = createAccessibilityIssueInfoContent(issue);
+      infoWindow.setContent(contentString);
+      infoWindow.setPosition({ lat: Number(issue.latitude), lng: Number(issue.longitude) });
+      infoWindow.open(mapInstance);
+    }
+  }, [mapInstance, infoWindow]);
+
   return (
     <div className="h-screen w-full flex relative overflow-hidden">
       {/* Map Controls */}
@@ -318,8 +446,40 @@ const AccessMap = () => {
           className="absolute inset-0 bg-gray-100"
         />
         {loading && <MapLoading />}
+        
+        {/* Contribution Buttons */}
+        <div className="absolute bottom-6 right-6 z-10 flex flex-col gap-3">
+          <Button
+            variant="default"
+            size="lg"
+            onClick={() => openContributionDialog('point')}
+            className="rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center gap-2 bg-primary text-primary-foreground"
+          >
+            <MapPin className="h-5 w-5" />
+            <span className="font-medium">Add Point</span>
+          </Button>
+          <Button
+            variant="destructive"
+            size="lg"
+            onClick={() => openContributionDialog('issue')}
+            className="rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center gap-2"
+          >
+            <AlertTriangle className="h-5 w-5" />
+            <span className="font-medium">Report Issue</span>
+          </Button>
+        </div>
       </div>
       
+      {/* Contribution Dialog */}
+      {contributionDialog.location && (
+        <ContributionDialog
+          isOpen={contributionDialog.isOpen}
+          onClose={closeContributionDialog}
+          type={contributionDialog.type}
+          location={contributionDialog.location}
+        />
+      )}
+
       {/* Sidebar */}
       <div 
         className={`bg-white border-l border-gray-200 h-full transition-all duration-300 ease-in-out flex flex-col ${
@@ -349,7 +509,12 @@ const AccessMap = () => {
             setSearchQuery={setSearchQuery}
             handleSearchPlaces={handleSearchPlaces}
             accessibilityPoints={accessibilityPoints}
+            accessibilityIssues={accessibilityIssues}
             mapInstance={mapInstance}
+            onPointClick={handlePointClick}
+            onIssueClick={handleIssueClick}
+            onPointsUpdate={fetchAccessibilityData}
+            onIssuesUpdate={fetchAccessibilityData}
           />
         )}
       </div>

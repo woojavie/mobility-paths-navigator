@@ -7,7 +7,7 @@ import {
   ArrowRight, 
   Search,
   Accessibility,
-  Stairs,
+  Stars,
   ArrowUp,
   Construction,
   UserRound
@@ -172,7 +172,7 @@ const AccessMap = () => {
                 <div className="flex items-center space-x-2">
                   <Checkbox id="avoid-stairs" />
                   <Label htmlFor="avoid-stairs" className="flex items-center">
-                    <Stairs className="h-4 w-4 mr-2 text-accessOrange" />
+                    <Stars className="h-4 w-4 mr-2 text-accessOrange" />
                     Avoid stairs
                   </Label>
                 </div>

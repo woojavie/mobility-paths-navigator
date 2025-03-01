@@ -5,8 +5,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { ThumbsUp, MapPin, AlertTriangle } from 'lucide-react';
 import type { AccessibilityPoint, AccessibilityIssue } from './types';
-import { communityService } from '@/services/communityService';
 import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CommunityTabProps {
   accessibilityPoints: AccessibilityPoint[];
@@ -29,9 +29,9 @@ export function CommunityTab({
 
   const handleUpvotePoint = async (point: AccessibilityPoint) => {
     try {
-      await communityService.updateAccessibilityPoint(point.id, {
+      await supabase.from('accessibility_points').update({
         upvotes: (point.upvotes || 0) + 1
-      });
+      }).eq('id', point.id);
       onPointsUpdate();
       toast({
         title: "Success",
@@ -49,9 +49,9 @@ export function CommunityTab({
 
   const handleUpvoteIssue = async (issue: AccessibilityIssue) => {
     try {
-      await communityService.updateAccessibilityIssue(issue.id, {
+      await supabase.from('accessibility_issues').update({
         upvotes: (issue.upvotes || 0) + 1
-      });
+      }).eq('id', issue.id);
       onIssuesUpdate();
       toast({
         title: "Success",

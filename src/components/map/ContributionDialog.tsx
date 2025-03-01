@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
-import { communityService } from '@/services/communityService';
 import { AccessibilityPointType, AccessibilityIssueType } from './types';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ContributionDialogProps {
   isOpen: boolean;
@@ -48,27 +48,31 @@ export function ContributionDialog({ isOpen, onClose, type, location }: Contribu
 
     try {
       if (type === 'point') {
-        await communityService.addAccessibilityPoint({
-          name: formData.name,
-          type: formData.type as AccessibilityPointType,
-          description: formData.description || null,
-          latitude: location.lat,
-          longitude: location.lng,
-          is_operational: formData.isOperational
-        });
+        await supabase.from('accessibility_points').insert([
+          {
+            name: formData.name,
+            type: formData.type as AccessibilityPointType,
+            description: formData.description || null,
+            latitude: location.lat,
+            longitude: location.lng,
+            is_operational: formData.isOperational
+          }
+        ]);
         toast({
           title: "Success",
           description: "Accessibility point added successfully!",
         });
       } else {
-        await communityService.reportAccessibilityIssue({
-          title: formData.name,
-          type: formData.type as AccessibilityIssueType,
-          description: formData.description || null,
-          latitude: location.lat,
-          longitude: location.lng,
-          start_date: new Date().toISOString()
-        });
+        await supabase.from('accessibility_issues').insert([
+          {
+            title: formData.name,
+            type: formData.type as AccessibilityIssueType,
+            description: formData.description || null,
+            latitude: location.lat,
+            longitude: location.lng,
+            start_date: new Date().toISOString()
+          }
+        ]);
         toast({
           title: "Success",
           description: "Issue reported successfully!",

@@ -32,11 +32,11 @@ export interface Member {
 }
 
 // Discussions
-export const fetchDiscussions = async () => {
+export const fetchDiscussions = async (sortOrder: 'newest' | 'oldest' = 'newest') => {
   const { data, error } = await supabase
     .from('discussions')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: sortOrder === 'oldest' });
     
   if (error) {
     console.error('Error fetching discussions:', error);
@@ -61,11 +61,11 @@ export const createDiscussion = async (discussion: Omit<Discussion, 'id' | 'crea
 };
 
 // Reviews
-export const fetchReviews = async () => {
+export const fetchReviews = async (sortOrder: 'newest' | 'oldest' = 'newest') => {
   const { data, error } = await supabase
     .from('reviews')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: sortOrder === 'oldest' });
     
   if (error) {
     console.error('Error fetching reviews:', error);

@@ -1,4 +1,5 @@
-import { useRef, useEffect, useState } from 'react';
+
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { 
   MapPin, 
   Navigation, 
@@ -10,17 +11,74 @@ import {
   Stars,
   ArrowUp,
   Construction,
-  UserRound
+  UserRound,
+  Loader2
 } from 'lucide-react';
+import { Loader } from '@googlemaps/js-api-loader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
 
 // Define the google maps types
-type GoogleMapType = any;
-type GoogleMapsLoaderType = any;
+type GoogleMapType = google.maps.Map;
+type MarkerType = google.maps.Marker;
+type InfoWindowType = google.maps.InfoWindow;
+
+type AccessibilityPoint = {
+  id: string;
+  type: 'elevator' | 'ramp' | 'accessible_entrance' | 'accessible_bathroom' | 'tactile_paving' | 'handicap_parking';
+  name: string;
+  description: string | null;
+  latitude: number;
+  longitude: number;
+  is_operational: boolean;
+  verified: boolean;
+};
+
+type AccessibilityIssue = {
+  id: string;
+  type: 'construction' | 'broken_elevator' | 'blocked_path' | 'temporary_closure' | 'other';
+  title: string;
+  description: string | null;
+  latitude: number;
+  longitude: number;
+  start_date: string;
+  end_date: string | null;
+  verified: boolean;
+};
+
+// Map icon configurations based on point type
+const getMarkerIcon = (type: string, isOperational = true) => {
+  // For demo purposes, we'll use simple colors
+  const colors: {[key: string]: string} = {
+    elevator: '#4285F4',          // Blue
+    ramp: '#34A853',              // Green
+    accessible_entrance: '#4285F4', // Blue
+    accessible_bathroom: '#673AB7', // Purple
+    tactile_paving: '#FF9800',    // Orange
+    handicap_parking: '#0F9D58',  // Green
+    construction: '#EA4335',      // Red
+    broken_elevator: '#EA4335',   // Red
+    blocked_path: '#EA4335',      // Red
+    temporary_closure: '#EA4335', // Red
+    other: '#757575',             // Gray
+  };
+  
+  // Create a custom marker
+  return {
+    path: 'M 12,2 C 8.13,2 5,5.13 5,9 c 0,5.25 7,13 7,13 0,0 7,-7.75 7,-13 0,-3.87 -3.13,-7 -7,-7 z M 12,11.5 c -1.38,0 -2.5,-1.12 -2.5,-2.5 0,-1.38 1.12,-2.5 2.5,-2.5 1.38,0 2.5,1.12 2.5,2.5 0,1.38 -1.12,2.5 -2.5,2.5 z',
+    fillColor: colors[type] || '#757575',
+    fillOpacity: isOperational ? 1 : 0.5,
+    strokeWeight: 1,
+    strokeColor: '#FFFFFF',
+    scale: 1.5,
+    anchor: new google.maps.Point(12, 22),
+  };
+};
 
 const AccessMap = () => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -28,46 +86,268 @@ const AccessMap = () => {
   const [mapInstance, setMapInstance] = useState<GoogleMapType | null>(null);
   const [activeTab, setActiveTab] = useState("route");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [markers, setMarkers] = useState<MarkerType[]>([]);
+  const [infoWindow, setInfoWindow] = useState<InfoWindowType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [accessibilityPoints, setAccessibilityPoints] = useState<AccessibilityPoint[]>([]);
+  const [accessibilityIssues, setAccessibilityIssues] = useState<AccessibilityIssue[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [startLocation, setStartLocation] = useState('Current location');
+  const [endLocation, setEndLocation] = useState('');
+  const [preferences, setPreferences] = useState({
+    wheelchairAccessible: false,
+    avoidStairs: false,
+    elevatorRequired: false,
+    avoidConstruction: true
+  });
   
   // Initialize the map
   useEffect(() => {
     const initMap = async () => {
-      // For demo purposes only - we're showing a static map
       if (mapRef.current && !mapLoaded) {
-        setMapLoaded(true);
         try {
-          // In a real app, you'd use the Google Maps JavaScript API or Mapbox
-          // This is a placeholder demonstration
-          console.log("Map would initialize here with proper API keys");
+          // Try to load Google Maps with a dummy API key - in production, use a real API key
+          const loader = new Loader({
+            apiKey: "YOUR_GOOGLE_MAPS_API_KEY", // Replace with your actual API key
+            version: "weekly",
+            libraries: ["places"]
+          });
           
-          // Mock the map instance
-          const mockMap = {
-            setCenter: () => {},
-            setZoom: () => {},
-            addListener: () => {}
-          };
+          const google = await loader.load();
+          const map = new google.maps.Map(mapRef.current, {
+            center: { lat: 40.7128, lng: -74.0060 }, // Default to New York
+            zoom: 14,
+            mapTypeId: google.maps.MapTypeId.ROADMAP,
+            mapTypeControl: false,
+            fullscreenControl: false,
+            streetViewControl: false,
+            zoomControl: true,
+            zoomControlOptions: {
+              position: google.maps.ControlPosition.RIGHT_TOP
+            }
+          });
           
-          setMapInstance(mockMap as GoogleMapType);
+          // Create a single info window instance to reuse
+          const infoWindowInstance = new google.maps.InfoWindow();
           
-          // Add sample markers for accessible features (would come from API in real app)
-          addSampleMarkers();
+          setMapInstance(map);
+          setInfoWindow(infoWindowInstance);
+          setMapLoaded(true);
+          
+          // Try to get user's location
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                const pos = {
+                  lat: position.coords.latitude,
+                  lng: position.coords.longitude,
+                };
+                map.setCenter(pos);
+                
+                // Add a marker for the user's location
+                new google.maps.Marker({
+                  position: pos,
+                  map: map,
+                  icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 8,
+                    fillColor: "#4285F4",
+                    fillOpacity: 1,
+                    strokeColor: "white",
+                    strokeWeight: 2,
+                  },
+                  title: "You are here",
+                });
+              },
+              () => {
+                console.log("Error: The Geolocation service failed.");
+              }
+            );
+          }
           
         } catch (error) {
-          console.error("Error loading Map:", error);
+          console.error("Error loading Google Maps:", error);
+          toast({
+            title: "Error loading map",
+            description: "Please check your internet connection and try again.",
+            variant: "destructive"
+          });
+        } finally {
+          setLoading(false);
         }
       }
-    };
-    
-    // Sample data for accessible features - simplified for now
-    const addSampleMarkers = () => {
-      console.log("Sample markers would be added here");
     };
     
     initMap();
   }, [mapLoaded]);
   
+  // Fetch accessibility data from Supabase
+  useEffect(() => {
+    const fetchAccessibilityData = async () => {
+      try {
+        // Fetch accessibility points
+        const { data: pointsData, error: pointsError } = await supabase
+          .from('accessibility_points')
+          .select('*');
+        
+        if (pointsError) throw pointsError;
+        
+        // Fetch accessibility issues
+        const { data: issuesData, error: issuesError } = await supabase
+          .from('accessibility_issues')
+          .select('*');
+        
+        if (issuesError) throw issuesError;
+        
+        setAccessibilityPoints(pointsData);
+        setAccessibilityIssues(issuesData);
+        
+      } catch (error) {
+        console.error("Error fetching accessibility data:", error);
+        toast({
+          title: "Error loading accessibility data",
+          description: "Please try again later.",
+          variant: "destructive"
+        });
+      }
+    };
+    
+    if (mapLoaded) {
+      fetchAccessibilityData();
+    }
+  }, [mapLoaded]);
+  
+  // Add markers to the map when data is loaded
+  useEffect(() => {
+    if (mapInstance && infoWindow) {
+      // Clear any existing markers
+      markers.forEach(marker => marker.setMap(null));
+      
+      const newMarkers: MarkerType[] = [];
+      
+      // Add accessibility points
+      accessibilityPoints.forEach(point => {
+        if (google && mapInstance) {
+          const marker = new google.maps.Marker({
+            position: { lat: Number(point.latitude), lng: Number(point.longitude) },
+            map: mapInstance,
+            title: point.name,
+            icon: getMarkerIcon(point.type, point.is_operational)
+          });
+          
+          marker.addListener('click', () => {
+            if (infoWindow) {
+              const contentString = `
+                <div class="p-2">
+                  <h3 class="font-bold">${point.name}</h3>
+                  <div class="text-sm mt-1">Type: ${point.type.replace('_', ' ')}</div>
+                  ${point.description ? `<p class="text-sm mt-1">${point.description}</p>` : ''}
+                  <div class="text-sm mt-1">Status: ${point.is_operational ? 'Operational' : 'Not operational'}</div>
+                  ${point.verified ? '<div class="text-sm text-green-600 mt-1">✓ Verified</div>' : ''}
+                </div>
+              `;
+              
+              infoWindow.setContent(contentString);
+              infoWindow.open(mapInstance, marker);
+            }
+          });
+          
+          newMarkers.push(marker);
+        }
+      });
+      
+      // Add accessibility issues
+      accessibilityIssues.forEach(issue => {
+        if (google && mapInstance) {
+          const marker = new google.maps.Marker({
+            position: { lat: Number(issue.latitude), lng: Number(issue.longitude) },
+            map: mapInstance,
+            title: issue.title,
+            icon: getMarkerIcon(issue.type)
+          });
+          
+          marker.addListener('click', () => {
+            if (infoWindow) {
+              const endDateText = issue.end_date 
+                ? `Expected to end: ${new Date(issue.end_date).toLocaleDateString()}`
+                : 'End date: Unknown';
+              
+              const contentString = `
+                <div class="p-2">
+                  <h3 class="font-bold">${issue.title}</h3>
+                  <div class="text-sm mt-1">Type: ${issue.type.replace('_', ' ')}</div>
+                  ${issue.description ? `<p class="text-sm mt-1">${issue.description}</p>` : ''}
+                  <div class="text-sm mt-1">Started: ${new Date(issue.start_date).toLocaleDateString()}</div>
+                  <div class="text-sm mt-1">${endDateText}</div>
+                  ${issue.verified ? '<div class="text-sm text-green-600 mt-1">✓ Verified</div>' : ''}
+                </div>
+              `;
+              
+              infoWindow.setContent(contentString);
+              infoWindow.open(mapInstance, marker);
+            }
+          });
+          
+          newMarkers.push(marker);
+        }
+      });
+      
+      setMarkers(newMarkers);
+    }
+  }, [mapInstance, infoWindow, accessibilityPoints, accessibilityIssues]);
+  
+  const handleSearchPlaces = useCallback(() => {
+    if (!mapInstance || !searchQuery) return;
+    
+    // Filter points based on search query
+    const filteredPoints = accessibilityPoints.filter(point => 
+      point.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      point.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    
+    // If we found matching points, zoom to them
+    if (filteredPoints.length > 0) {
+      const bounds = new google.maps.LatLngBounds();
+      filteredPoints.forEach(point => {
+        bounds.extend({ lat: Number(point.latitude), lng: Number(point.longitude) });
+      });
+      mapInstance.fitBounds(bounds);
+      
+      // If only one point, zoom in more
+      if (filteredPoints.length === 1) {
+        mapInstance.setZoom(18);
+      }
+      
+      toast({
+        title: `Found ${filteredPoints.length} matching locations`,
+        description: "The map has been centered on the results."
+      });
+    } else {
+      toast({
+        title: "No matching locations found",
+        description: "Try a different search term."
+      });
+    }
+  }, [mapInstance, searchQuery, accessibilityPoints]);
+  
+  const handleFindRoute = useCallback(() => {
+    // In a real app, this would connect to a routing API with accessibility preferences
+    // For now, we'll just show a toast
+    toast({
+      title: "Route planning",
+      description: "This feature will be implemented soon. It will include your accessibility preferences.",
+    });
+  }, [preferences]);
+  
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
+  };
+  
+  const togglePreference = (preference: keyof typeof preferences) => {
+    setPreferences(prev => ({
+      ...prev,
+      [preference]: !prev[preference]
+    }));
   };
   
   return (
@@ -111,10 +391,14 @@ const AccessMap = () => {
       
       {/* Map Container */}
       <div ref={mapRef} className="flex-1 h-full bg-gray-100">
-        {/* Map loads here */}
-        <div className="w-full h-full flex items-center justify-center">
-          <p className="text-gray-500">Map will appear here with proper API integration</p>
-        </div>
+        {loading && (
+          <div className="w-full h-full flex items-center justify-center bg-white bg-opacity-80 z-10">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-accessBlue" />
+              <p className="text-gray-600">Loading map...</p>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Sidebar */}
@@ -140,6 +424,8 @@ const AccessMap = () => {
                 <Input 
                   id="start"
                   placeholder="Current location"
+                  value={startLocation}
+                  onChange={(e) => setStartLocation(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -152,6 +438,8 @@ const AccessMap = () => {
                 <Input 
                   id="destination"
                   placeholder="Enter destination"
+                  value={endLocation}
+                  onChange={(e) => setEndLocation(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -162,7 +450,11 @@ const AccessMap = () => {
               
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
-                  <Checkbox id="wheelchair-required" />
+                  <Checkbox 
+                    id="wheelchair-required" 
+                    checked={preferences.wheelchairAccessible}
+                    onCheckedChange={() => togglePreference('wheelchairAccessible')}
+                  />
                   <Label htmlFor="wheelchair-required" className="flex items-center">
                     <Accessibility className="h-4 w-4 mr-2 text-accessBlue" />
                     Wheelchair accessible
@@ -170,7 +462,11 @@ const AccessMap = () => {
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <Checkbox id="avoid-stairs" />
+                  <Checkbox 
+                    id="avoid-stairs"
+                    checked={preferences.avoidStairs}
+                    onCheckedChange={() => togglePreference('avoidStairs')}
+                  />
                   <Label htmlFor="avoid-stairs" className="flex items-center">
                     <Stars className="h-4 w-4 mr-2 text-accessOrange" />
                     Avoid stairs
@@ -178,7 +474,11 @@ const AccessMap = () => {
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <Checkbox id="elevator-required" />
+                  <Checkbox 
+                    id="elevator-required"
+                    checked={preferences.elevatorRequired}
+                    onCheckedChange={() => togglePreference('elevatorRequired')}
+                  />
                   <Label htmlFor="elevator-required" className="flex items-center">
                     <ArrowUp className="h-4 w-4 mr-2 text-accessBlue" />
                     Elevator required
@@ -186,7 +486,11 @@ const AccessMap = () => {
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <Checkbox id="avoid-construction" defaultChecked />
+                  <Checkbox 
+                    id="avoid-construction" 
+                    checked={preferences.avoidConstruction}
+                    onCheckedChange={() => togglePreference('avoidConstruction')}
+                  />
                   <Label htmlFor="avoid-construction" className="flex items-center">
                     <Construction className="h-4 w-4 mr-2 text-accessOrange" />
                     Avoid construction
@@ -195,7 +499,7 @@ const AccessMap = () => {
               </div>
             </div>
             
-            <Button className="w-full">
+            <Button className="w-full" onClick={handleFindRoute}>
               Find Accessible Route
             </Button>
             
@@ -237,7 +541,17 @@ const AccessMap = () => {
               <Input 
                 placeholder="Search for accessible places"
                 className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchPlaces()}
               />
+              <Button 
+                className="absolute right-1 top-1 h-8" 
+                size="sm"
+                onClick={handleSearchPlaces}
+              >
+                Search
+              </Button>
             </div>
             
             <div className="space-y-1">
@@ -246,46 +560,45 @@ const AccessMap = () => {
             </div>
             
             <div className="space-y-3">
-              <div className="border rounded-lg p-4 space-y-2 hover:border-accessBlue transition-colors cursor-pointer">
-                <h4 className="font-medium">Public Library</h4>
-                <div className="flex space-x-2 text-sm text-gray-600">
-                  <span className="flex items-center">
-                    <Accessibility className="h-3.5 w-3.5 mr-1 text-accessBlue" />
-                    Accessible
-                  </span>
-                  <span className="flex items-center">
-                    <ArrowUp className="h-3.5 w-3.5 mr-1 text-accessBlue" />
-                    Elevator
-                  </span>
+              {accessibilityPoints.length > 0 ? (
+                accessibilityPoints.slice(0, 5).map((point) => (
+                  <div 
+                    key={point.id}
+                    className="border rounded-lg p-4 space-y-2 hover:border-accessBlue transition-colors cursor-pointer"
+                    onClick={() => {
+                      if (mapInstance) {
+                        mapInstance.setCenter({ 
+                          lat: Number(point.latitude), 
+                          lng: Number(point.longitude) 
+                        });
+                        mapInstance.setZoom(18);
+                      }
+                    }}
+                  >
+                    <h4 className="font-medium">{point.name}</h4>
+                    <div className="flex space-x-2 text-sm text-gray-600">
+                      <span className="flex items-center">
+                        <Accessibility className="h-3.5 w-3.5 mr-1 text-accessBlue" />
+                        {point.type.replace('_', ' ')}
+                      </span>
+                      {point.type === 'elevator' && (
+                        <span className="flex items-center">
+                          <ArrowUp className="h-3.5 w-3.5 mr-1 text-accessBlue" />
+                          Elevator
+                        </span>
+                      )}
+                    </div>
+                    {point.description && (
+                      <p className="text-sm text-gray-600">{point.description}</p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No accessibility points found nearby.</p>
+                  <p className="text-sm text-gray-400 mt-1">Try searching in a different area or contribute by adding points!</p>
                 </div>
-                <p className="text-sm text-gray-600">Ramp entrance on south side, elevator to all floors</p>
-              </div>
-              
-              <div className="border rounded-lg p-4 space-y-2 hover:border-accessBlue transition-colors cursor-pointer">
-                <h4 className="font-medium">Central Park Zoo</h4>
-                <div className="flex space-x-2 text-sm text-gray-600">
-                  <span className="flex items-center">
-                    <Accessibility className="h-3.5 w-3.5 mr-1 text-accessBlue" />
-                    Accessible
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">Paved paths throughout, accessible restrooms available</p>
-              </div>
-              
-              <div className="border rounded-lg p-4 space-y-2 hover:border-accessBlue transition-colors cursor-pointer">
-                <h4 className="font-medium">Museum of Modern Art</h4>
-                <div className="flex space-x-2 text-sm text-gray-600">
-                  <span className="flex items-center">
-                    <Accessibility className="h-3.5 w-3.5 mr-1 text-accessBlue" />
-                    Accessible
-                  </span>
-                  <span className="flex items-center">
-                    <ArrowUp className="h-3.5 w-3.5 mr-1 text-accessBlue" />
-                    Elevator
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">Multiple accessible entrances, elevators to all galleries</p>
-              </div>
+              )}
             </div>
           </TabsContent>
           

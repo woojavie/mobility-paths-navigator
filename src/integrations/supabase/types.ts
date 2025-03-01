@@ -9,7 +9,180 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      accessibility_issues: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          latitude: number
+          longitude: number
+          reported_by: string | null
+          start_date: string | null
+          title: string
+          type: string
+          updated_at: string | null
+          verified: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          latitude: number
+          longitude: number
+          reported_by?: string | null
+          start_date?: string | null
+          title: string
+          type: string
+          updated_at?: string | null
+          verified?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          reported_by?: string | null
+          start_date?: string | null
+          title?: string
+          type?: string
+          updated_at?: string | null
+          verified?: boolean | null
+        }
+        Relationships: []
+      }
+      accessibility_points: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_operational: boolean | null
+          latitude: number
+          longitude: number
+          name: string
+          reported_by: string | null
+          type: string
+          updated_at: string | null
+          verified: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_operational?: boolean | null
+          latitude: number
+          longitude: number
+          name: string
+          reported_by?: string | null
+          type: string
+          updated_at?: string | null
+          verified?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_operational?: boolean | null
+          latitude?: number
+          longitude?: number
+          name?: string
+          reported_by?: string | null
+          type?: string
+          updated_at?: string | null
+          verified?: boolean | null
+        }
+        Relationships: []
+      }
+      accessible_routes: {
+        Row: {
+          avoids_construction: boolean | null
+          avoids_stairs: boolean | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          end_point: Json
+          has_elevator: boolean | null
+          id: string
+          name: string
+          path_coordinates: Json
+          rating: number | null
+          start_point: Json
+          updated_at: string | null
+          verified: boolean | null
+          wheelchair_accessible: boolean | null
+        }
+        Insert: {
+          avoids_construction?: boolean | null
+          avoids_stairs?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_point: Json
+          has_elevator?: boolean | null
+          id?: string
+          name: string
+          path_coordinates: Json
+          rating?: number | null
+          start_point: Json
+          updated_at?: string | null
+          verified?: boolean | null
+          wheelchair_accessible?: boolean | null
+        }
+        Update: {
+          avoids_construction?: boolean | null
+          avoids_stairs?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_point?: Json
+          has_elevator?: boolean | null
+          id?: string
+          name?: string
+          path_coordinates?: Json
+          rating?: number | null
+          start_point?: Json
+          updated_at?: string | null
+          verified?: boolean | null
+          wheelchair_accessible?: boolean | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          mobility_preferences: Json | null
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          mobility_preferences?: Json | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          mobility_preferences?: Json | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

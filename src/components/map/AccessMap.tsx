@@ -193,7 +193,6 @@ const AccessMap = () => {
     if (!mapInstance || !startLocation || !endLocation) return;
 
     try {
-<<<<<<< HEAD
       let originCoords: { lat: number; lng: number } | string;
       
       // Handle current location
@@ -213,16 +212,6 @@ const AccessMap = () => {
         }
       } else {
         originCoords = startLocation;
-=======
-      // Validate end location
-      if (!endLocation || endLocation.trim() === '') {
-        toast({
-          title: "Missing destination",
-          description: "Please enter a destination location",
-          variant: "destructive"
-        });
-        return;
->>>>>>> 9cb6540f3295a722a4c73840a966a424e6d859d7
       }
 
       // Clear existing route if any
@@ -232,31 +221,8 @@ const AccessMap = () => {
       }
       setCurrentRoute(null);
 
-<<<<<<< HEAD
       const route = await calculateRoute(originCoords, endLocation, preferences);
       
-=======
-      let origin: LatLng | string;
-      try {
-        origin = startLocation === 'Current location'
-          ? await getCurrentPosition()
-          : startLocation.trim();
-      } catch (error) {
-        toast({
-          title: "Location error",
-          description: "Could not get current location. Please enter a start location manually.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const route = await calculateRoute(
-        origin,
-        endLocation.trim(),
-        preferences
-      );
-
->>>>>>> 9cb6540f3295a722a4c73840a966a424e6d859d7
       if (route) {
         // Create and display the route polyline using the path points
         const newPolyline = new google.maps.Polyline({

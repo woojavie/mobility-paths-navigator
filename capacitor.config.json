@@ -1,0 +1,32 @@
+{
+  "appId": "app.mobility.paths.navigator",
+  "appName": "Mobility Paths Navigator",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#FFFFFF",
+      "showSpinner": true,
+      "androidSpinnerStyle": "large",
+      "spinnerColor": "#000000"
+    }
+  },
+  "android": {
+    "buildOptions": {
+      "keystorePath": null,
+      "keystorePassword": null,
+      "keystoreAlias": null,
+      "keystoreAliasPassword": null
+    }
+  },
+  "ios": {
+    "contentInset": "always"
+  }
+} 

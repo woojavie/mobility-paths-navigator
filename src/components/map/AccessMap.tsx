@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
@@ -15,6 +14,8 @@ import { useGoogleMaps } from './useGoogleMaps';
 import MapControls from './MapControls';
 import MapLoading from './MapLoading';
 import Sidebar from './Sidebar';
+import { calculateRoute, RouteResult } from '@/services/routeService';
+import DirectionsPanel from './DirectionsPanel';
 
 const AccessMap = () => {
   const { mapRef, mapInstance, infoWindow, mapLoaded, loading } = useGoogleMaps();
@@ -32,6 +33,8 @@ const AccessMap = () => {
     elevatorRequired: false,
     avoidConstruction: true
   });
+  const [currentRoute, setCurrentRoute] = useState<RouteResult | null>(null);
+  const [routePolyline, setRoutePolyline] = useState<google.maps.Polyline | null>(null);
   
   // Fetch accessibility data from Supabase
   useEffect(() => {
@@ -170,14 +173,75 @@ const AccessMap = () => {
     }
   }, [mapInstance, searchQuery, accessibilityPoints]);
   
-  const handleFindRoute = useCallback(() => {
-    // In a real app, this would connect to a routing API with accessibility preferences
-    // For now, we'll just show a toast
-    toast({
-      title: "Route planning",
-      description: "This feature will be implemented soon. It will include your accessibility preferences.",
+  const handleFindRoute = useCallback(async () => {
+    if (!mapInstance) return;
+
+    try {
+      // Clear existing route if any
+      if (routePolyline) {
+        routePolyline.setMap(null);
+        setRoutePolyline(null);
+      }
+
+      const route = await calculateRoute(
+        startLocation === 'Current location' 
+          ? await getCurrentPosition()
+          : startLocation,
+        endLocation,
+        preferences
+      );
+
+      if (route) {
+        // Display the route on the map
+        const decodedPath = google.maps.geometry.encoding.decodePath(route.polyline);
+        const newPolyline = new google.maps.Polyline({
+          path: decodedPath,
+          geodesic: true,
+          strokeColor: '#4285F4',
+          strokeOpacity: 1.0,
+          strokeWeight: 3,
+          map: mapInstance
+        });
+
+        // Fit the map to show the entire route
+        const bounds = new google.maps.LatLngBounds();
+        decodedPath.forEach(point => bounds.extend(point));
+        mapInstance.fitBounds(bounds);
+
+        setRoutePolyline(newPolyline);
+        setCurrentRoute(route);
+      }
+    } catch (error) {
+      console.error('Error finding route:', error);
+      toast({
+        title: "Error finding route",
+        description: "Please check your start and end locations and try again.",
+        variant: "destructive"
+      });
+    }
+  }, [mapInstance, startLocation, endLocation, preferences, routePolyline]);
+
+  const getCurrentPosition = (): Promise<{ lat: number; lng: number }> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          reject(new Error('Could not get current location'));
+        }
+      );
     });
-  }, [preferences]);
+  };
   
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -189,35 +253,62 @@ const AccessMap = () => {
       [preference]: !prev[preference]
     }));
   };
+
+  const handleBackFromDirections = useCallback(() => {
+    if (routePolyline) {
+      routePolyline.setMap(null);
+      setRoutePolyline(null);
+    }
+    setCurrentRoute(null);
+  }, [routePolyline]);
   
   return (
-    <div className="h-screen w-full flex relative">
+    <div className="h-screen w-full flex relative overflow-hidden">
       {/* Map Controls */}
       <MapControls isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
       
       {/* Map Container */}
-      <div ref={mapRef} className="flex-1 h-full bg-gray-100">
+      <div className="flex-1 relative">
+        <div 
+          ref={mapRef} 
+          className="absolute inset-0 bg-gray-100"
+        />
         {loading && <MapLoading />}
       </div>
       
       {/* Sidebar */}
-      <Sidebar 
-        isSidebarOpen={isSidebarOpen}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        startLocation={startLocation}
-        setStartLocation={setStartLocation}
-        endLocation={endLocation}
-        setEndLocation={setEndLocation}
-        preferences={preferences}
-        togglePreference={togglePreference}
-        handleFindRoute={handleFindRoute}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        handleSearchPlaces={handleSearchPlaces}
-        accessibilityPoints={accessibilityPoints}
-        mapInstance={mapInstance}
-      />
+      <div 
+        className={`bg-white border-l border-gray-200 h-full transition-all duration-300 ease-in-out flex flex-col ${
+          isSidebarOpen ? 'w-full md:w-96' : 'w-0 overflow-hidden'
+        }`}
+      >
+        {currentRoute ? (
+          <DirectionsPanel
+            steps={currentRoute.steps}
+            totalDistance={currentRoute.totalDistance}
+            totalDuration={currentRoute.totalDuration}
+            onBack={handleBackFromDirections}
+          />
+        ) : (
+          <Sidebar 
+            isSidebarOpen={isSidebarOpen}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            startLocation={startLocation}
+            setStartLocation={setStartLocation}
+            endLocation={endLocation}
+            setEndLocation={setEndLocation}
+            preferences={preferences}
+            togglePreference={togglePreference}
+            handleFindRoute={handleFindRoute}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            handleSearchPlaces={handleSearchPlaces}
+            accessibilityPoints={accessibilityPoints}
+            mapInstance={mapInstance}
+          />
+        )}
+      </div>
     </div>
   );
 };

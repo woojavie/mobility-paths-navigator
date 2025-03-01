@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from 'react';
 import { Loader } from '@googlemaps/js-api-loader';
 import { GoogleMapType, InfoWindowType } from './types';
@@ -11,83 +10,174 @@ export const useGoogleMaps = () => {
   const [mapInstance, setMapInstance] = useState<GoogleMapType | null>(null);
   const [infoWindow, setInfoWindow] = useState<InfoWindowType | null>(null);
 
+  // Handle window resize
   useEffect(() => {
-    const initMap = async () => {
-      if (mapRef.current && !mapLoaded) {
+    const handleResize = () => {
+      if (mapInstance && window.google) {
         try {
-          // Try to load Google Maps with a dummy API key - in production, use a real API key
-          const loader = new Loader({
-            apiKey: "YOUR_GOOGLE_MAPS_API_KEY", // Replace with your actual API key
-            version: "weekly",
-            libraries: ["places"]
-          });
-          
-          const googleMaps = await loader.load();
-          const map = new googleMaps.maps.Map(mapRef.current, {
-            center: { lat: 40.7128, lng: -74.0060 }, // Default to New York
-            zoom: 14,
-            mapTypeId: googleMaps.maps.MapTypeId.ROADMAP,
-            mapTypeControl: false,
-            fullscreenControl: false,
-            streetViewControl: false,
-            zoomControl: true,
-            zoomControlOptions: {
-              position: googleMaps.maps.ControlPosition.RIGHT_TOP
-            }
-          });
-          
-          // Create a single info window instance to reuse
-          const infoWindowInstance = new googleMaps.maps.InfoWindow();
-          
+          window.google.maps.event.trigger(mapInstance, 'resize');
+          if (mapInstance.getCenter()) {
+            const center = mapInstance.getCenter();
+            mapInstance.setCenter(center);
+          }
+        } catch (error) {
+          console.error('Error handling resize:', error);
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [mapInstance]);
+
+  useEffect(() => {
+    let isMounted = true;
+    
+    const initMap = async () => {
+      if (!mapRef.current || mapLoaded) return;
+      
+      try {
+        setLoading(true);
+        
+        // Log the API key (first few characters for debugging)
+        const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+        console.log('API Key starts with:', apiKey.substring(0, 8) + '...');
+        
+        if (!apiKey) {
+          throw new Error('Google Maps API key is missing');
+        }
+
+        const loader = new Loader({
+          apiKey,
+          version: "weekly",
+          libraries: ["places", "geometry"]
+        });
+        
+        console.log('Loading Google Maps...');
+        const googleMaps = await loader.load();
+        console.log('Google Maps loaded successfully');
+
+        if (!isMounted) return;
+        
+        const map = new googleMaps.maps.Map(mapRef.current, {
+          center: { lat: 40.7128, lng: -74.0060 },
+          zoom: 14,
+          mapTypeId: googleMaps.maps.MapTypeId.ROADMAP,
+          mapTypeControl: false,
+          fullscreenControl: false,
+          streetViewControl: false,
+          zoomControl: true,
+          zoomControlOptions: {
+            position: googleMaps.maps.ControlPosition.RIGHT_TOP
+          }
+        });
+
+        // Add resize event listener to the map
+        googleMaps.maps.event.addListenerOnce(map, 'idle', () => {
+          if (!isMounted) return;
+          try {
+            googleMaps.maps.event.trigger(map, 'resize');
+            console.log('Map resize triggered on idle');
+          } catch (error) {
+            console.error('Error triggering resize on idle:', error);
+          }
+        });
+
+        // Add error handler for the map
+        googleMaps.maps.event.addListener(map, 'error', (e) => {
+          console.error('Google Maps error:', e);
+          if (isMounted) {
+            toast({
+              title: "Map error occurred",
+              description: "There was an error with the map. Please refresh the page.",
+              variant: "destructive"
+            });
+          }
+        });
+        
+        // Create a single info window instance to reuse
+        const infoWindowInstance = new googleMaps.maps.InfoWindow();
+        
+        if (isMounted) {
           setMapInstance(map);
           setInfoWindow(infoWindowInstance);
           setMapLoaded(true);
-          
-          // Try to get user's location
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-              (position) => {
-                const pos = {
-                  lat: position.coords.latitude,
-                  lng: position.coords.longitude,
-                };
-                map.setCenter(pos);
-                
-                // Add a marker for the user's location
-                new googleMaps.maps.Marker({
-                  position: pos,
-                  map: map,
-                  icon: {
-                    path: googleMaps.maps.SymbolPath.CIRCLE,
-                    scale: 8,
-                    fillColor: "#4285F4",
-                    fillOpacity: 1,
-                    strokeColor: "white",
-                    strokeWeight: 2,
-                  },
-                  title: "You are here",
+          console.log('Map instance created and stored');
+        }
+        
+        // Try to get user's location
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              if (!isMounted) return;
+              
+              const pos = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+              };
+              map.setCenter(pos);
+              console.log('User location set:', pos);
+              
+              // Add a marker for the user's location
+              new googleMaps.maps.Marker({
+                position: pos,
+                map: map,
+                icon: {
+                  path: googleMaps.maps.SymbolPath.CIRCLE,
+                  scale: 8,
+                  fillColor: "#4285F4",
+                  fillOpacity: 1,
+                  strokeColor: "white",
+                  strokeWeight: 2,
+                },
+                title: "You are here",
+              });
+            },
+            (error) => {
+              console.error("Geolocation error:", error);
+              if (isMounted) {
+                toast({
+                  title: "Location access denied",
+                  description: "Please enable location access for better experience.",
+                  variant: "destructive"
                 });
-              },
-              () => {
-                console.log("Error: The Geolocation service failed.");
               }
-            );
-          }
-          
-        } catch (error) {
-          console.error("Error loading Google Maps:", error);
+            }
+          );
+        }
+        
+      } catch (error) {
+        console.error("Error initializing Google Maps:", error);
+        if (isMounted) {
           toast({
             title: "Error loading map",
-            description: "Please check your internet connection and try again.",
+            description: error instanceof Error ? error.message : "Please check your internet connection and try again.",
             variant: "destructive"
           });
-        } finally {
+        }
+      } finally {
+        if (isMounted) {
           setLoading(false);
         }
       }
     };
     
     initMap();
+
+    return () => {
+      isMounted = false;
+      if (mapInstance && window.google) {
+        try {
+          // Remove all event listeners
+          window.google.maps.event.clearInstanceListeners(mapInstance);
+          setMapInstance(null);
+          setMapLoaded(false);
+          console.log('Map cleanup completed');
+        } catch (error) {
+          console.error('Error during cleanup:', error);
+        }
+      }
+    };
   }, [mapLoaded]);
 
   return { mapRef, mapInstance, infoWindow, mapLoaded, loading };

@@ -1,14 +1,25 @@
-
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
-  Menu, X, MapPin, Search, User, ChevronDown, HelpCircle 
+  Menu, X, MapPin, Search, User, ChevronDown, HelpCircle, LogIn, LogOut 
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -18,6 +29,15 @@ const Header = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
     <header 
@@ -39,7 +59,9 @@ const Header = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
             <Link to="/map" className="font-medium transition-colors hover:text-accessBlue">Map</Link>
-            <Link to="/contribute" className="font-medium transition-colors hover:text-accessBlue">Contribute</Link>
+            {user && (
+              <Link to="/contribute" className="font-medium transition-colors hover:text-accessBlue">Contribute</Link>
+            )}
             <Link to="/community" className="font-medium transition-colors hover:text-accessBlue">Community</Link>
             <Link to="/about" className="font-medium transition-colors hover:text-accessBlue">About</Link>
           </div>
@@ -49,10 +71,40 @@ const Header = () => {
               <Search className="h-4 w-4 mr-2" />
               Search
             </Button>
-            <Button className="rounded-full">
-              <User className="h-4 w-4 mr-2" />
-              Sign In
-            </Button>
+            
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user.user_metadata?.avatar_url} alt={user.email || ''} />
+                      <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sign out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button className="rounded-full" asChild>
+                <Link to="/signin">
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Sign In
+                </Link>
+              </Button>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -81,13 +133,15 @@ const Header = () => {
             >
               Map
             </Link>
-            <Link 
-              to="/contribute" 
-              className="px-4 py-3 rounded-lg hover:bg-accessBlue/10 transition-colors"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Contribute
-            </Link>
+            {user && (
+              <Link 
+                to="/contribute" 
+                className="px-4 py-3 rounded-lg hover:bg-accessBlue/10 transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Contribute
+              </Link>
+            )}
             <Link 
               to="/community" 
               className="px-4 py-3 rounded-lg hover:bg-accessBlue/10 transition-colors"
@@ -107,10 +161,36 @@ const Header = () => {
                 <Search className="h-4 w-4 mr-2" />
                 Search
               </Button>
-              <Button className="w-full justify-start">
-                <User className="h-4 w-4 mr-2" />
-                Sign In
-              </Button>
+              
+              {user ? (
+                <>
+                  <Link 
+                    to="/profile" 
+                    className="px-4 py-3 rounded-lg hover:bg-accessBlue/10 transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <User className="h-4 w-4 mr-2 inline" />
+                    Profile
+                  </Link>
+                  <Button 
+                    className="w-full justify-start"
+                    onClick={() => {
+                      handleSignOut();
+                      setIsMobileMenuOpen(false);
+                    }}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <Button className="w-full justify-start" asChild>
+                  <Link to="/signin" onClick={() => setIsMobileMenuOpen(false)}>
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Sign In
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         </div>

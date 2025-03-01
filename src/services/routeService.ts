@@ -22,8 +22,24 @@ export interface RouteResult {
   steps: RouteStep[];
   totalDistance: string;
   totalDuration: string;
-  polyline: string;
+  path: LatLng[];
 }
+
+// Calculate distance between two points using the Haversine formula
+const calculateDistance = (point1: LatLng, point2: LatLng): number => {
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = (point1.lat * Math.PI) / 180;
+  const φ2 = (point2.lat * Math.PI) / 180;
+  const Δφ = ((point2.lat - point1.lat) * Math.PI) / 180;
+  const Δλ = ((point2.lng - point1.lng) * Math.PI) / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // Distance in meters
+};
 
 export const calculateRoute = async (
   origin: LatLng | string,
@@ -34,6 +50,10 @@ export const calculateRoute = async (
     if (!window.google) {
       throw new Error('Google Maps not loaded');
     }
+
+    console.log('Starting route calculation...');
+    console.log('Origin:', origin);
+    console.log('Destination:', destination);
 
     // Convert string addresses to coordinates if needed
     const originCoords = typeof origin === 'string' 
@@ -48,61 +68,43 @@ export const calculateRoute = async (
       throw new Error('Could not find location coordinates');
     }
 
-    // Initialize the Routes API client
-    const routesService = new google.maps.RoutesService();
+    console.log('Coordinates resolved:', { originCoords, destinationCoords });
 
-    const request = {
-      origin: {
-        location: {
-          latLng: {
-            latitude: originCoords.lat,
-            longitude: originCoords.lng
-          }
-        }
-      },
-      destination: {
-        location: {
-          latLng: {
-            latitude: destinationCoords.lat,
-            longitude: destinationCoords.lng
-          }
-        }
-      },
-      travelMode: google.maps.TravelMode.WALKING,
-      routingPreference: google.maps.RoutingPreference.LESS_WALKING,
-      languageCode: "en-US",
-      computeAlternativeRoutes: false,
-      routeModifiers: {
-        avoidIndoor: preferences.avoidStairs,
-        avoidElevators: !preferences.elevatorRequired,
-      }
-    };
-
-    const response = await routesService.route(request);
+    // Calculate straight-line distance
+    const distanceInMeters = calculateDistance(originCoords, destinationCoords);
     
-    if (!response || !response.routes || response.routes.length === 0) {
-      throw new Error('No route found');
+    // Assume average walking speed of 1.4 meters per second (5 km/h)
+    const durationInSeconds = Math.ceil(distanceInMeters / 1.4);
+
+    // Create a simple path with just the start and end points
+    const path = [originCoords, destinationCoords];
+
+    // Create a single step for the route
+    const steps: RouteStep[] = [{
+      instructions: `Walk to destination`,
+      distance: formatDistance(distanceInMeters),
+      duration: formatDuration(durationInSeconds.toString())
+    }];
+
+    // Add accessibility warning if needed
+    if (preferences.wheelchairAccessible || preferences.avoidStairs) {
+      steps[0].instructions = '⚠️ Note: This is a direct route and may not account for accessibility barriers. Please verify the path is accessible.';
     }
 
-    const route = response.routes[0];
-    const leg = route.legs[0];
-
     return {
-      steps: leg.steps.map(step => ({
-        instructions: step.navigationInstruction.instructions,
-        distance: formatDistance(step.distanceMeters),
-        duration: formatDuration(step.duration)
-      })),
-      totalDistance: formatDistance(route.distanceMeters),
-      totalDuration: formatDuration(route.duration),
-      polyline: route.polyline.encodedPolyline
+      steps,
+      totalDistance: formatDistance(distanceInMeters),
+      totalDuration: formatDuration(durationInSeconds.toString()),
+      path
     };
 
   } catch (error) {
     console.error('Error calculating route:', error);
+    
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     toast({
       title: "Error calculating route",
-      description: error instanceof Error ? error.message : "Please try again",
+      description: errorMessage,
       variant: "destructive"
     });
     return null;
@@ -156,7 +158,7 @@ const formatDistance = (meters: number): string => {
 };
 
 const formatDuration = (seconds: string): string => {
-  const totalSeconds = parseInt(seconds.replace('s', ''));
+  const totalSeconds = parseInt(seconds);
   const minutes = Math.floor(totalSeconds / 60);
   if (minutes < 1) {
     return '1 min';

@@ -437,7 +437,11 @@ const AccessMap = () => {
   return (
     <div className="h-screen w-full flex relative overflow-hidden">
       {/* Map Controls */}
-      <MapControls isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+      <MapControls 
+        isSidebarOpen={isSidebarOpen} 
+        toggleSidebar={toggleSidebar}
+        mapInstance={mapInstance}
+      />
       
       {/* Map Container */}
       <div className="flex-1 relative">

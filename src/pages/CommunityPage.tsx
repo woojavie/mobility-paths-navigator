@@ -9,7 +9,10 @@ import {
   Star,
   Filter,
   Loader2,
-  Bell
+  Bell,
+  Users,
+  Plus,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +21,7 @@ import { Layout } from '@/components/layout/Layout';
 import Footer from '@/components/layout/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { NewPostDialog } from '@/components/community/NewPostDialog';
+import { DiscussionDetail } from '@/components/community/DiscussionDetail';
 import { 
   fetchDiscussions, 
   fetchReviews, 
@@ -25,7 +29,10 @@ import {
   formatDate,
   type Discussion,
   type Review,
-  type Member
+  type Member,
+  checkIfLiked,
+  addLike,
+  removeLike
 } from '@/services/communityService';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
@@ -45,6 +52,9 @@ const CommunityPage = () => {
   const subscriptionRef = useRef<any>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const [selectedDiscussionId, setSelectedDiscussionId] = useState<string | null>(null);
+  const [discussionLikes, setDiscussionLikes] = useState<Record<string, boolean>>({});
+  const [isLikeLoading, setIsLikeLoading] = useState<Record<string, boolean>>({});
   
   // Scroll to top on page load
   useEffect(() => {
@@ -59,6 +69,19 @@ const CommunityPage = () => {
       if (tabName === 'discussions' && (discussions.length === 0 || forceRefresh)) {
         const data = await fetchDiscussions(sortOrder);
         setDiscussions(data);
+        
+        // Check which discussions the user has liked
+        if (user) {
+          const likesMap: Record<string, boolean> = {};
+          for (const discussion of data) {
+            try {
+              likesMap[discussion.id] = await checkIfLiked(user.id, discussion.id);
+            } catch (error) {
+              console.error(`Error checking like for discussion ${discussion.id}:`, error);
+            }
+          }
+          setDiscussionLikes(likesMap);
+        }
       } else if (tabName === 'reviews' && (reviews.length === 0 || forceRefresh)) {
         const data = await fetchReviews(sortOrder);
         setReviews(data);
@@ -76,7 +99,7 @@ const CommunityPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [discussions.length, reviews.length, members.length, toast, sortOrder]);
+  }, [discussions.length, reviews.length, members.length, toast, sortOrder, user]);
   
   // Load data based on active tab
   useEffect(() => {
@@ -187,21 +210,20 @@ const CommunityPage = () => {
   // Loading state component
   const LoadingState = () => (
     <div className="flex justify-center items-center py-12">
-      <Loader2 className="h-8 w-8 animate-spin text-accessBlue" />
-      <span className="ml-2 text-gray-600">Loading...</span>
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
     </div>
   );
   
   // Empty state component
   const EmptyState = ({ type }: { type: string }) => (
-    <div className="text-center py-12 bg-gray-50 rounded-lg">
-      <div className="mb-4">
-        {type === 'discussions' && <MessageSquare className="h-12 w-12 mx-auto text-gray-300" />}
-        {type === 'reviews' && <Star className="h-12 w-12 mx-auto text-gray-300" />}
-        {type === 'members' && <User className="h-12 w-12 mx-auto text-gray-300" />}
+    <div className="text-center py-12">
+      <div className="bg-gray-100 rounded-full p-4 inline-block mb-4">
+        {type === 'discussions' && <MessageSquare className="h-8 w-8 text-gray-400" />}
+        {type === 'reviews' && <Star className="h-8 w-8 text-gray-400" />}
+        {type === 'members' && <Users className="h-8 w-8 text-gray-400" />}
       </div>
-      <h3 className="text-lg font-medium text-gray-700">No {type} found</h3>
-      <p className="text-gray-500 mt-1">
+      <h3 className="text-xl font-semibold mb-2">No {type} found</h3>
+      <p className="text-gray-500">
         {searchQuery 
           ? `No ${type} match your search criteria.` 
           : `Be the first to add a ${type.slice(0, -1)}!`}
@@ -230,6 +252,84 @@ const CommunityPage = () => {
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
+  };
+  
+  // Handle like/unlike for a discussion
+  const handleLikeToggle = async (discussionId: string) => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'Please sign in to like discussions.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Set loading state for this specific discussion
+    setIsLikeLoading(prev => ({ ...prev, [discussionId]: true }));
+    
+    try {
+      const isCurrentlyLiked = discussionLikes[discussionId] || false;
+      
+      if (isCurrentlyLiked) {
+        await removeLike(user.id, discussionId);
+        
+        // Update local state
+        setDiscussionLikes(prev => ({ ...prev, [discussionId]: false }));
+        setDiscussions(prev => 
+          prev.map(d => 
+            d.id === discussionId 
+              ? { ...d, likes_count: (d.likes_count || 0) - 1 } 
+              : d
+          )
+        );
+      } else {
+        await addLike(user.id, discussionId);
+        
+        // Update local state
+        setDiscussionLikes(prev => ({ ...prev, [discussionId]: true }));
+        setDiscussions(prev => 
+          prev.map(d => 
+            d.id === discussionId 
+              ? { ...d, likes_count: (d.likes_count || 0) + 1 } 
+              : d
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      
+      // Provide more specific error message based on the error
+      let errorMessage = 'Failed to update like status. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Invalid parameters')) {
+          errorMessage = 'Invalid parameters for like operation. Please try again later.';
+        } else if (error.message.includes('duplicate key')) {
+          errorMessage = 'You have already liked this discussion.';
+        } else if (error.message.includes('violates foreign key constraint')) {
+          errorMessage = 'The discussion may have been deleted.';
+        }
+      }
+      
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLikeLoading(prev => ({ ...prev, [discussionId]: false }));
+    }
+  };
+  
+  // Handle clicking "Read More" on a discussion
+  const handleReadMore = (discussionId: string) => {
+    setSelectedDiscussionId(discussionId);
+  };
+  
+  // Handle going back from discussion detail
+  const handleBackFromDetail = () => {
+    setSelectedDiscussionId(null);
   };
   
   return (
@@ -383,16 +483,30 @@ const CommunityPage = () => {
                         <p className="text-gray-700 mb-4">{truncateText(discussion.content, 250)}</p>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={`flex items-center ${discussionLikes[discussion.id] ? 'text-primary' : 'text-gray-500'}`}
+                              onClick={() => handleLikeToggle(discussion.id)}
+                              disabled={isLikeLoading[discussion.id] || !user}
+                            >
+                              <ThumbsUp 
+                                className={`h-4 w-4 mr-1 ${discussionLikes[discussion.id] ? 'fill-primary' : ''}`} 
+                              />
+                              <span>{discussion.likes_count || 0}</span>
+                            </Button>
                             <div className="flex items-center text-gray-500">
                               <MessageSquare className="h-4 w-4 mr-1" />
                               <span>{discussion.replies_count || 0} replies</span>
                             </div>
-                            <div className="flex items-center text-gray-500">
-                              <ThumbsUp className="h-4 w-4 mr-1" />
-                              <span>{discussion.likes_count || 0} likes</span>
-                            </div>
                           </div>
-                          <Button variant="ghost" size="sm">Read More</Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleReadMore(discussion.id)}
+                          >
+                            Read More
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -490,6 +604,13 @@ const CommunityPage = () => {
       </main>
       
       <Footer />
+      
+      {selectedDiscussionId && (
+        <DiscussionDetail 
+          discussionId={selectedDiscussionId} 
+          onBack={handleBackFromDetail} 
+        />
+      )}
     </Layout>
   );
 };

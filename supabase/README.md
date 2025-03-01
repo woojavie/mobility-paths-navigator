@@ -12,9 +12,29 @@ The community feature requires several tables to be created in your Supabase pro
 4. `discussion_likes` - For tracking likes on discussions and replies
 5. `review_likes` - For tracking likes on reviews
 
+## Profiles Table
+
+The application also uses a `profiles` table to store user information:
+
+1. `profiles` - For storing user profile information like usernames and avatars
+
 ## How to Apply Migrations
 
-### Option 1: Using the Supabase CLI
+### Option 1: Using the Setup Scripts
+
+1. For community tables:
+   ```bash
+   npm run setup:community
+   ```
+
+2. For profiles table:
+   ```bash
+   npm run setup:profiles
+   ```
+
+These scripts will prompt you for your Supabase URL and service role key, then apply the migrations.
+
+### Option 2: Using the Supabase CLI
 
 1. Install the Supabase CLI if you haven't already:
    ```bash
@@ -36,7 +56,7 @@ The community feature requires several tables to be created in your Supabase pro
    supabase db push
    ```
 
-### Option 2: Manual SQL Execution
+### Option 3: Manual SQL Execution
 
 1. Log in to your Supabase dashboard
 2. Go to the SQL Editor
@@ -47,9 +67,10 @@ The community feature requires several tables to be created in your Supabase pro
 
 The migration includes RLS policies to ensure data security:
 
-- Everyone can read discussions, reviews, and replies
+- Everyone can read discussions, reviews, replies, and profiles
 - Only authenticated users can create new discussions, reviews, replies, and likes
 - Users can only update or delete their own content
+- Users can only update their own profile
 
 ## Triggers
 
@@ -57,6 +78,7 @@ The migration includes triggers to automatically:
 
 - Update the reply count on discussions when replies are added or deleted
 - Update the like count on discussions and replies when likes are added or deleted
+- Create a profile for new users when they sign up
 
 ## Database Schema
 
@@ -103,4 +125,11 @@ The migration includes triggers to automatically:
 - `id` - UUID primary key
 - `review_id` - UUID, references reviews
 - `user_id` - UUID, references auth.users
-- `created_at` - Timestamp 
+- `created_at` - Timestamp
+
+### profiles
+- `id` - UUID primary key, references auth.users
+- `username` - Text
+- `avatar_url` - Text
+- `created_at` - Timestamp
+- `updated_at` - Timestamp 

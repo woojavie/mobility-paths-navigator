@@ -35,8 +35,6 @@ export const calculateRoute = async (
       throw new Error('Google Maps not loaded');
     }
 
-    const directionsService = new google.maps.DirectionsService();
-
     // Convert string addresses to coordinates if needed
     const originCoords = typeof origin === 'string' 
       ? await geocodeAddress(origin)
@@ -50,34 +48,54 @@ export const calculateRoute = async (
       throw new Error('Could not find location coordinates');
     }
 
-    const request: google.maps.DirectionsRequest = {
-      origin: originCoords,
-      destination: destinationCoords,
+    // Initialize the Routes API client
+    const routesService = new google.maps.RoutesService();
+
+    const request = {
+      origin: {
+        location: {
+          latLng: {
+            latitude: originCoords.lat,
+            longitude: originCoords.lng
+          }
+        }
+      },
+      destination: {
+        location: {
+          latLng: {
+            latitude: destinationCoords.lat,
+            longitude: destinationCoords.lng
+          }
+        }
+      },
       travelMode: google.maps.TravelMode.WALKING,
-      provideRouteAlternatives: false,
+      routingPreference: google.maps.RoutingPreference.LESS_WALKING,
+      languageCode: "en-US",
+      computeAlternativeRoutes: false,
+      routeModifiers: {
+        avoidIndoor: preferences.avoidStairs,
+        avoidElevators: !preferences.elevatorRequired,
+      }
     };
 
-    const result = await directionsService.route(request);
-    const route = result.routes[0];
-    const leg = route.legs[0];
-
-    if (!leg) {
+    const response = await routesService.route(request);
+    
+    if (!response || !response.routes || response.routes.length === 0) {
       throw new Error('No route found');
     }
 
-    // Create encoded polyline from route path
-    const path = route.overview_path;
-    const polyline = google.maps.geometry.encoding.encodePath(path);
+    const route = response.routes[0];
+    const leg = route.legs[0];
 
     return {
       steps: leg.steps.map(step => ({
-        instructions: step.instructions,
-        distance: step.distance?.text || '0 m',
-        duration: step.duration?.text || '1 min'
+        instructions: step.navigationInstruction.instructions,
+        distance: formatDistance(step.distanceMeters),
+        duration: formatDuration(step.duration)
       })),
-      totalDistance: leg.distance?.text || '0 km',
-      totalDuration: leg.duration?.text || '0 min',
-      polyline
+      totalDistance: formatDistance(route.distanceMeters),
+      totalDuration: formatDuration(route.duration),
+      polyline: route.polyline.encodedPolyline
     };
 
   } catch (error) {

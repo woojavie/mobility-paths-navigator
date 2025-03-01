@@ -23,14 +23,19 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 
-// Define the google maps types
+// Define types for Google Maps
+// This addresses the "Cannot find namespace 'google'" errors
 type GoogleMapType = google.maps.Map;
 type MarkerType = google.maps.Marker;
 type InfoWindowType = google.maps.InfoWindow;
 
+// Type definitions for our data models
+type AccessibilityPointType = 'elevator' | 'ramp' | 'accessible_entrance' | 'accessible_bathroom' | 'tactile_paving' | 'handicap_parking';
+type AccessibilityIssueType = 'construction' | 'broken_elevator' | 'blocked_path' | 'temporary_closure' | 'other';
+
 type AccessibilityPoint = {
   id: string;
-  type: 'elevator' | 'ramp' | 'accessible_entrance' | 'accessible_bathroom' | 'tactile_paving' | 'handicap_parking';
+  type: AccessibilityPointType;
   name: string;
   description: string | null;
   latitude: number;
@@ -41,7 +46,7 @@ type AccessibilityPoint = {
 
 type AccessibilityIssue = {
   id: string;
-  type: 'construction' | 'broken_elevator' | 'blocked_path' | 'temporary_closure' | 'other';
+  type: AccessibilityIssueType;
   title: string;
   description: string | null;
   latitude: number;
@@ -68,7 +73,7 @@ const getMarkerIcon = (type: string, isOperational = true) => {
     other: '#757575',             // Gray
   };
   
-  // Create a custom marker
+  // Create a custom marker (this will work once google maps is loaded)
   return {
     path: 'M 12,2 C 8.13,2 5,5.13 5,9 c 0,5.25 7,13 7,13 0,0 7,-7.75 7,-13 0,-3.87 -3.13,-7 -7,-7 z M 12,11.5 c -1.38,0 -2.5,-1.12 -2.5,-2.5 0,-1.38 1.12,-2.5 2.5,-2.5 1.38,0 2.5,1.12 2.5,2.5 0,1.38 -1.12,2.5 -2.5,2.5 z',
     fillColor: colors[type] || '#757575',
@@ -113,22 +118,22 @@ const AccessMap = () => {
             libraries: ["places"]
           });
           
-          const google = await loader.load();
-          const map = new google.maps.Map(mapRef.current, {
+          const googleMaps = await loader.load();
+          const map = new googleMaps.maps.Map(mapRef.current, {
             center: { lat: 40.7128, lng: -74.0060 }, // Default to New York
             zoom: 14,
-            mapTypeId: google.maps.MapTypeId.ROADMAP,
+            mapTypeId: googleMaps.maps.MapTypeId.ROADMAP,
             mapTypeControl: false,
             fullscreenControl: false,
             streetViewControl: false,
             zoomControl: true,
             zoomControlOptions: {
-              position: google.maps.ControlPosition.RIGHT_TOP
+              position: googleMaps.maps.ControlPosition.RIGHT_TOP
             }
           });
           
           // Create a single info window instance to reuse
-          const infoWindowInstance = new google.maps.InfoWindow();
+          const infoWindowInstance = new googleMaps.maps.InfoWindow();
           
           setMapInstance(map);
           setInfoWindow(infoWindowInstance);
@@ -145,11 +150,11 @@ const AccessMap = () => {
                 map.setCenter(pos);
                 
                 // Add a marker for the user's location
-                new google.maps.Marker({
+                new googleMaps.maps.Marker({
                   position: pos,
                   map: map,
                   icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
+                    path: googleMaps.maps.SymbolPath.CIRCLE,
                     scale: 8,
                     fillColor: "#4285F4",
                     fillOpacity: 1,
@@ -199,8 +204,19 @@ const AccessMap = () => {
         
         if (issuesError) throw issuesError;
         
-        setAccessibilityPoints(pointsData);
-        setAccessibilityIssues(issuesData);
+        // Cast the types properly to match our defined types
+        setAccessibilityPoints(pointsData?.map(point => ({
+          ...point,
+          type: point.type as AccessibilityPointType,
+          description: point.description || null,
+        })) || []);
+        
+        setAccessibilityIssues(issuesData?.map(issue => ({
+          ...issue,
+          type: issue.type as AccessibilityIssueType,
+          description: issue.description || null,
+          end_date: issue.end_date || null,
+        })) || []);
         
       } catch (error) {
         console.error("Error fetching accessibility data:", error);
@@ -227,8 +243,8 @@ const AccessMap = () => {
       
       // Add accessibility points
       accessibilityPoints.forEach(point => {
-        if (google && mapInstance) {
-          const marker = new google.maps.Marker({
+        if (window.google && mapInstance) {
+          const marker = new window.google.maps.Marker({
             position: { lat: Number(point.latitude), lng: Number(point.longitude) },
             map: mapInstance,
             title: point.name,
@@ -258,8 +274,8 @@ const AccessMap = () => {
       
       // Add accessibility issues
       accessibilityIssues.forEach(issue => {
-        if (google && mapInstance) {
-          const marker = new google.maps.Marker({
+        if (window.google && mapInstance) {
+          const marker = new window.google.maps.Marker({
             position: { lat: Number(issue.latitude), lng: Number(issue.longitude) },
             map: mapInstance,
             title: issue.title,
@@ -307,7 +323,7 @@ const AccessMap = () => {
     
     // If we found matching points, zoom to them
     if (filteredPoints.length > 0) {
-      const bounds = new google.maps.LatLngBounds();
+      const bounds = new window.google.maps.LatLngBounds();
       filteredPoints.forEach(point => {
         bounds.extend({ lat: Number(point.latitude), lng: Number(point.longitude) });
       });

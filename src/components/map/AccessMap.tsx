@@ -1,6 +1,5 @@
 
 import { useRef, useEffect, useState } from 'react';
-import { Loader } from '@googlemaps/js-api-loader';
 import { 
   MapPin, 
   Navigation, 
@@ -8,10 +7,11 @@ import {
   Layers, 
   ArrowRight, 
   Search,
-  Wheelchair,
-  Stairs,
-  Elevator,
-  Construction 
+  Accessibility,
+  LucideStairs,
+  ArrowUp,
+  Construction,
+  UserRound
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,14 +19,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
-// This is a placeholder API key. In a real application, you'd need to get an actual Google Maps API key
-// and properly secure it. For production, it should be stored in environment variables.
-const GOOGLE_MAPS_API_KEY = "YOUR_API_KEY";
+// Define the google maps types
+type GoogleMapType = any;
+type GoogleMapsLoaderType = any;
 
 const AccessMap = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
+  const [mapInstance, setMapInstance] = useState<GoogleMapType | null>(null);
   const [activeTab, setActiveTab] = useState("route");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
@@ -34,94 +34,34 @@ const AccessMap = () => {
   useEffect(() => {
     const initMap = async () => {
       // For demo purposes only - we're showing a static map
-      // In a real app, you'd use the Google Maps API
       if (mapRef.current && !mapLoaded) {
         setMapLoaded(true);
         try {
-          const loader = new Loader({
-            apiKey: GOOGLE_MAPS_API_KEY,
-            version: "weekly",
-            libraries: ["places"]
-          });
+          // In a real app, you'd use the Google Maps JavaScript API or Mapbox
+          // This is a placeholder demonstration
+          console.log("Map would initialize here with proper API keys");
           
-          const google = await loader.load();
-          const map = new google.maps.Map(mapRef.current, {
-            center: { lat: 40.7128, lng: -74.0060 }, // New York City
-            zoom: 14,
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: false,
-            zoomControl: true,
-            zoomControlOptions: {
-              position: google.maps.ControlPosition.RIGHT_BOTTOM
-            }
-          });
+          // Mock the map instance
+          const mockMap = {
+            setCenter: () => {},
+            setZoom: () => {},
+            addListener: () => {}
+          };
           
-          setMapInstance(map);
+          setMapInstance(mockMap as GoogleMapType);
           
           // Add sample markers for accessible features (would come from API in real app)
-          addSampleMarkers(map, google);
+          addSampleMarkers();
           
         } catch (error) {
-          console.error("Error loading Google Maps:", error);
+          console.error("Error loading Map:", error);
         }
       }
     };
     
-    // Sample data for accessible features
-    const addSampleMarkers = (map: google.maps.Map, google: any) => {
-      // Accessible entrances
-      const accessibleLocations = [
-        { lat: 40.7128, lng: -74.0060, type: 'ramp', title: 'Accessible Ramp' },
-        { lat: 40.7138, lng: -74.0070, type: 'elevator', title: 'Elevator Access' },
-        { lat: 40.7118, lng: -74.0050, type: 'entrance', title: 'Accessible Entrance' },
-        { lat: 40.7135, lng: -74.0040, type: 'bathroom', title: 'Accessible Bathroom' },
-        { lat: 40.7145, lng: -74.0065, type: 'barrier', title: 'Construction (Temporary Barrier)' }
-      ];
-      
-      accessibleLocations.forEach(location => {
-        let icon;
-        
-        switch(location.type) {
-          case 'ramp':
-            icon = {
-              url: `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 9 9 3 15 9"></polyline><polyline points="21 14 15 20 9 14"></polyline></svg>')}`,
-              scaledSize: new google.maps.Size(24, 24)
-            };
-            break;
-          case 'elevator':
-            icon = {
-              url: `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="8" y1="12" x2="16" y2="12"></line><line x1="12" y1="8" x2="12" y2="16"></line></svg>')}`,
-              scaledSize: new google.maps.Size(24, 24)
-            };
-            break;
-          case 'entrance':
-            icon = {
-              url: `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>')}`,
-              scaledSize: new google.maps.Size(24, 24)
-            };
-            break;
-          case 'bathroom':
-            icon = {
-              url: `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V12a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10"></path><path d="M2 22h20"></path><path d="M12 10V2a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"></path><path d="M18 10V4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v6"></path></svg>')}`,
-              scaledSize: new google.maps.Size(24, 24)
-            };
-            break;
-          case 'barrier':
-            icon = {
-              url: `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,2 6,11 12,11 9,22"></polyline><path d="M3 5h18"></path><path d="M3 19h18"></path></svg>')}`,
-              scaledSize: new google.maps.Size(24, 24)
-            };
-            break;
-        }
-        
-        new google.maps.Marker({
-          position: { lat: location.lat, lng: location.lng },
-          map,
-          title: location.title,
-          icon
-        });
-      });
+    // Sample data for accessible features - simplified for now
+    const addSampleMarkers = () => {
+      console.log("Sample markers would be added here");
     };
     
     initMap();
@@ -173,6 +113,9 @@ const AccessMap = () => {
       {/* Map Container */}
       <div ref={mapRef} className="flex-1 h-full bg-gray-100">
         {/* Map loads here */}
+        <div className="w-full h-full flex items-center justify-center">
+          <p className="text-gray-500">Map will appear here with proper API integration</p>
+        </div>
       </div>
       
       {/* Sidebar */}
@@ -222,7 +165,7 @@ const AccessMap = () => {
                 <div className="flex items-center space-x-2">
                   <Checkbox id="wheelchair-required" />
                   <Label htmlFor="wheelchair-required" className="flex items-center">
-                    <Wheelchair className="h-4 w-4 mr-2 text-accessBlue" />
+                    <Accessibility className="h-4 w-4 mr-2 text-accessBlue" />
                     Wheelchair accessible
                   </Label>
                 </div>
@@ -230,7 +173,7 @@ const AccessMap = () => {
                 <div className="flex items-center space-x-2">
                   <Checkbox id="avoid-stairs" />
                   <Label htmlFor="avoid-stairs" className="flex items-center">
-                    <Stairs className="h-4 w-4 mr-2 text-accessOrange" />
+                    <LucideStairs className="h-4 w-4 mr-2 text-accessOrange" />
                     Avoid stairs
                   </Label>
                 </div>
@@ -238,7 +181,7 @@ const AccessMap = () => {
                 <div className="flex items-center space-x-2">
                   <Checkbox id="elevator-required" />
                   <Label htmlFor="elevator-required" className="flex items-center">
-                    <Elevator className="h-4 w-4 mr-2 text-accessBlue" />
+                    <ArrowUp className="h-4 w-4 mr-2 text-accessBlue" />
                     Elevator required
                   </Label>
                 </div>
@@ -308,11 +251,11 @@ const AccessMap = () => {
                 <h4 className="font-medium">Public Library</h4>
                 <div className="flex space-x-2 text-sm text-gray-600">
                   <span className="flex items-center">
-                    <Wheelchair className="h-3.5 w-3.5 mr-1 text-accessBlue" />
+                    <Accessibility className="h-3.5 w-3.5 mr-1 text-accessBlue" />
                     Accessible
                   </span>
                   <span className="flex items-center">
-                    <Elevator className="h-3.5 w-3.5 mr-1 text-accessBlue" />
+                    <ArrowUp className="h-3.5 w-3.5 mr-1 text-accessBlue" />
                     Elevator
                   </span>
                 </div>
@@ -323,7 +266,7 @@ const AccessMap = () => {
                 <h4 className="font-medium">Central Park Zoo</h4>
                 <div className="flex space-x-2 text-sm text-gray-600">
                   <span className="flex items-center">
-                    <Wheelchair className="h-3.5 w-3.5 mr-1 text-accessBlue" />
+                    <Accessibility className="h-3.5 w-3.5 mr-1 text-accessBlue" />
                     Accessible
                   </span>
                 </div>
@@ -334,11 +277,11 @@ const AccessMap = () => {
                 <h4 className="font-medium">Museum of Modern Art</h4>
                 <div className="flex space-x-2 text-sm text-gray-600">
                   <span className="flex items-center">
-                    <Wheelchair className="h-3.5 w-3.5 mr-1 text-accessBlue" />
+                    <Accessibility className="h-3.5 w-3.5 mr-1 text-accessBlue" />
                     Accessible
                   </span>
                   <span className="flex items-center">
-                    <Elevator className="h-3.5 w-3.5 mr-1 text-accessBlue" />
+                    <ArrowUp className="h-3.5 w-3.5 mr-1 text-accessBlue" />
                     Elevator
                   </span>
                 </div>
@@ -356,7 +299,7 @@ const AccessMap = () => {
             <div className="bg-gray-50 rounded-lg p-4 text-center">
               <p className="text-gray-600">Sign in to save your favorite accessible places and routes</p>
               <Button variant="outline" className="mt-3">
-                <User className="h-4 w-4 mr-2" />
+                <UserRound className="h-4 w-4 mr-2" />
                 Sign In
               </Button>
             </div>

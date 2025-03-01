@@ -1,10 +1,9 @@
-
 import { useEffect, useState } from 'react';
 import { 
   MessageSquare, 
   User, 
   ThumbsUp, 
-  Wheelchair, 
+  Accessibility,
   MapPin,
   Search,
   Star,
@@ -241,7 +240,7 @@ const CommunityPage = () => {
             </div>
             
             <div className="bg-gray-50 rounded-xl p-6 text-center">
-              <Wheelchair className="h-8 w-8 text-accessBlue mx-auto mb-3" />
+              <Accessibility className="h-8 w-8 text-accessBlue mx-auto mb-3" />
               <h2 className="text-xl font-semibold mb-2">Join our accessibility community</h2>
               <p className="text-gray-600 mb-4">
                 Sign up to participate in discussions, write reviews, and connect with others 

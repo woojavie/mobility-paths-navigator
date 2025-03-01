@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Search, ArrowRight, Wheelchair, Route, Star } from 'lucide-react';
+import { MapPin, Search, ArrowRight, Accessibility, Route, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -26,7 +26,7 @@ const HeroSection = () => {
       <div className="container max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
         <div className={`space-y-6 ${isVisible ? 'animate-slide-up opacity-100' : 'opacity-0'}`}>
           <div className="inline-flex items-center px-3 py-1 rounded-full bg-accessGreen-light text-accessGreen-dark text-sm font-medium">
-            <Wheelchair className="h-4 w-4 mr-2" />
+            <Accessibility className="h-4 w-4 mr-2" />
             <span>Accessible navigation made simple</span>
           </div>
           
@@ -98,7 +98,7 @@ const HeroSection = () => {
               
               <div className="grid grid-cols-2 gap-3">
                 <Button variant="outline" className="rounded-lg border border-gray-200" onClick={goToMap}>
-                  <Wheelchair className="h-4 w-4 mr-2" />
+                  <Accessibility className="h-4 w-4 mr-2" />
                   Wheelchair
                 </Button>
                 <Button variant="outline" className="rounded-lg border border-gray-200" onClick={goToMap}>

@@ -40,19 +40,31 @@ const AccessMap = () => {
   useEffect(() => {
     const fetchAccessibilityData = async () => {
       try {
-        // Fetch accessibility points
-        const { data: pointsData, error: pointsError } = await supabase
-          .from('accessibility_points')
-          .select('*');
+        console.log('Fetching accessibility data from Supabase...');
         
-        if (pointsError) throw pointsError;
+        // Fetch accessibility points
+        const pointsQuery = supabase.from('accessibility_points').select('*');
+        console.log('Executing points query:', pointsQuery);
+        const { data: pointsData, error: pointsError } = await pointsQuery;
+        
+        if (pointsError) {
+          console.error('Error fetching accessibility points:', pointsError);
+          throw pointsError;
+        }
+        
+        console.log('Received points data:', pointsData);
         
         // Fetch accessibility issues
-        const { data: issuesData, error: issuesError } = await supabase
-          .from('accessibility_issues')
-          .select('*');
+        const issuesQuery = supabase.from('accessibility_issues').select('*');
+        console.log('Executing issues query:', issuesQuery);
+        const { data: issuesData, error: issuesError } = await issuesQuery;
         
-        if (issuesError) throw issuesError;
+        if (issuesError) {
+          console.error('Error fetching accessibility issues:', issuesError);
+          throw issuesError;
+        }
+        
+        console.log('Received issues data:', issuesData);
         
         // Cast the types properly to match our defined types
         setAccessibilityPoints(pointsData?.map(point => ({
@@ -70,9 +82,13 @@ const AccessMap = () => {
         
       } catch (error) {
         console.error("Error fetching accessibility data:", error);
+        console.error("Error details:", {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        });
         toast({
           title: "Error loading accessibility data",
-          description: "Please try again later.",
+          description: "Please check the console for details and try again later.",
           variant: "destructive"
         });
       }
@@ -173,53 +189,81 @@ const AccessMap = () => {
     }
   }, [mapInstance, searchQuery, accessibilityPoints]);
   
-  const handleFindRoute = useCallback(async () => {
-    if (!mapInstance) return;
+  const calculateAndDisplayRoute = useCallback(async () => {
+    if (!mapInstance || !startLocation || !endLocation) return;
 
     try {
+      let originCoords: { lat: number; lng: number } | string;
+      
+      // Handle current location
+      if (startLocation === 'Current location') {
+        try {
+          originCoords = await getCurrentPosition();
+          // Center map on current location
+          mapInstance.setCenter(originCoords);
+          mapInstance.setZoom(15);
+        } catch (error) {
+          toast({
+            title: "Location Error",
+            description: "Could not get your current location. Please check your browser settings.",
+            variant: "destructive"
+          });
+          return;
+        }
+      } else {
+        originCoords = startLocation;
+      }
+
       // Clear existing route if any
       if (routePolyline) {
         routePolyline.setMap(null);
         setRoutePolyline(null);
       }
+      setCurrentRoute(null);
 
-      const route = await calculateRoute(
-        startLocation === 'Current location' 
-          ? await getCurrentPosition()
-          : startLocation,
-        endLocation,
-        preferences
-      );
-
+      const route = await calculateRoute(originCoords, endLocation, preferences);
+      
       if (route) {
-        // Display the route on the map
-        const decodedPath = google.maps.geometry.encoding.decodePath(route.polyline);
+        // Create and display the route polyline using the path points
         const newPolyline = new google.maps.Polyline({
-          path: decodedPath,
+          path: route.path,
           geodesic: true,
-          strokeColor: '#4285F4',
+          strokeColor: '#2563eb',
           strokeOpacity: 1.0,
           strokeWeight: 3,
-          map: mapInstance
         });
-
-        // Fit the map to show the entire route
-        const bounds = new google.maps.LatLngBounds();
-        decodedPath.forEach(point => bounds.extend(point));
-        mapInstance.fitBounds(bounds);
-
+        
+        newPolyline.setMap(mapInstance);
         setRoutePolyline(newPolyline);
         setCurrentRoute(route);
+
+        // Fit bounds to show the entire route
+        const bounds = new google.maps.LatLngBounds();
+        route.path.forEach((point) => bounds.extend(point));
+        mapInstance.fitBounds(bounds);
       }
     } catch (error) {
-      console.error('Error finding route:', error);
+      console.error('Route calculation error:', error);
       toast({
-        title: "Error finding route",
-        description: "Please check your start and end locations and try again.",
+        title: "Route Error",
+        description: "Could not calculate the route. Please try again.",
         variant: "destructive"
       });
     }
-  }, [mapInstance, startLocation, endLocation, preferences, routePolyline]);
+  }, [mapInstance, startLocation, endLocation, preferences]);
+
+  const handleFindRoute = useCallback(async () => {
+    if (!mapInstance || !startLocation || !endLocation) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter both start and end locations.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await calculateAndDisplayRoute();
+  }, [mapInstance, startLocation, endLocation, calculateAndDisplayRoute]);
 
   const getCurrentPosition = (): Promise<{ lat: number; lng: number }> => {
     return new Promise((resolve, reject) => {
@@ -314,3 +358,4 @@ const AccessMap = () => {
 };
 
 export default AccessMap;
+

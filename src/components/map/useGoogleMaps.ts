@@ -45,10 +45,8 @@ export const useGoogleMaps = () => {
           throw new Error('Google Maps API key is missing. Please check your environment variables.');
         }
 
-        // Only log API key in development
-        if (import.meta.env.DEV) {
-          console.log('API Key validation:', apiKey ? 'Present' : 'Missing');
-        }
+        // Debug logging
+        console.log('Initializing Google Maps with API key:', apiKey.substring(0, 8) + '...');
 
         const loader = new Loader({
           apiKey,
@@ -57,29 +55,29 @@ export const useGoogleMaps = () => {
         });
         
         console.log('Loading Google Maps...');
-        const googleMaps = await loader.load();
+        const google = await loader.load();
         console.log('Google Maps loaded successfully');
 
         if (!isMounted) return;
         
-        const map = new googleMaps.maps.Map(mapRef.current, {
+        const map = new google.maps.Map(mapRef.current, {
           center: { lat: 40.7128, lng: -74.0060 },
           zoom: 14,
-          mapTypeId: googleMaps.maps.MapTypeId.ROADMAP,
+          mapTypeId: google.maps.MapTypeId.ROADMAP,
           mapTypeControl: false,
           fullscreenControl: false,
           streetViewControl: false,
           zoomControl: true,
           zoomControlOptions: {
-            position: googleMaps.maps.ControlPosition.RIGHT_TOP
+            position: google.maps.ControlPosition.RIGHT_TOP
           }
         });
 
         // Add resize event listener to the map
-        googleMaps.maps.event.addListenerOnce(map, 'idle', () => {
+        google.maps.event.addListenerOnce(map, 'idle', () => {
           if (!isMounted) return;
           try {
-            googleMaps.maps.event.trigger(map, 'resize');
+            google.maps.event.trigger(map, 'resize');
             console.log('Map resize triggered on idle');
           } catch (error) {
             console.error('Error triggering resize on idle:', error);
@@ -87,7 +85,7 @@ export const useGoogleMaps = () => {
         });
 
         // Add error handler for the map
-        googleMaps.maps.event.addListener(map, 'error', (e) => {
+        google.maps.event.addListener(map, 'error', (e) => {
           console.error('Google Maps error:', e);
           if (isMounted) {
             toast({
@@ -99,7 +97,7 @@ export const useGoogleMaps = () => {
         });
         
         // Create a single info window instance to reuse
-        const infoWindowInstance = new googleMaps.maps.InfoWindow();
+        const infoWindowInstance = new google.maps.InfoWindow();
         
         if (isMounted) {
           setMapInstance(map);
@@ -122,11 +120,11 @@ export const useGoogleMaps = () => {
               console.log('User location set:', pos);
               
               // Add a marker for the user's location
-              new googleMaps.maps.Marker({
+              new google.maps.Marker({
                 position: pos,
                 map: map,
                 icon: {
-                  path: googleMaps.maps.SymbolPath.CIRCLE,
+                  path: google.maps.SymbolPath.CIRCLE,
                   scale: 8,
                   fillColor: "#4285F4",
                   fillOpacity: 1,

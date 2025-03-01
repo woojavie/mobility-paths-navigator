@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import Header from '@/components/layout/Header';
+import { Layout } from '@/components/layout/Layout';
 import Footer from '@/components/layout/Footer';
 
 const CommunityPage = () => {
@@ -28,12 +28,11 @@ const CommunityPage = () => {
     {
       id: 1,
       title: "Best wheelchair accessible parks in NYC?",
-      author: "Sarah J.",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80",
-      time: "2 hours ago",
+      author: "WheelExplorer",
+      date: "2 days ago",
       replies: 12,
       likes: 24,
-      excerpt: "I'm planning to visit NYC next month and would love recommendations for parks with good wheelchair accessibility. Looking for smooth paths and accessible restrooms."
+      excerpt: "I'm planning a trip to New York City and would love recommendations for parks that are truly wheelchair accessible with good pathways and facilities."
     },
     {
       id: 2,
@@ -61,12 +60,12 @@ const CommunityPage = () => {
   const reviews = [
     {
       id: 1,
-      location: "Central Park - Bethesda Fountain",
+      place: "Central Park",
+      location: "New York, NY",
+      author: "AccessibilityAdvocate",
+      date: "1 week ago",
       rating: 4.5,
-      author: "Alex T.",
-      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80",
-      time: "1 week ago",
-      content: "Excellent wheelchair accessibility around the fountain area. Paved paths are well-maintained. Bathroom in the Terrace area is fully accessible. Highly recommend!"
+      text: "Most paths are well-maintained and accessible. The Bethesda Terrace area has ramps and elevators. Restrooms are accessible but can be far apart."
     },
     {
       id: 2,
@@ -88,20 +87,29 @@ const CommunityPage = () => {
     }
   ];
   
-  // Render star rating
+  // Sample data for members
+  const members = [
+    {
+      id: 1,
+      name: "AccessibilityAdvocate",
+      contributions: 156,
+      joined: "1 year ago",
+      avatar: "https://randomuser.me/api/portraits/women/12.jpg"
+    },
+  ];
+  
+  // Function to render star ratings
   const renderStars = (rating: number) => {
     const stars = [];
     const fullStars = Math.floor(rating);
-    const halfStar = rating % 1 >= 0.5;
+    const hasHalfStar = rating % 1 !== 0;
     
     for (let i = 0; i < fullStars; i++) {
-      stars.push(<Star key={`star-${i}`} className="h-4 w-4 fill-accessOrange text-accessOrange" />);
+      stars.push(<Star key={`full-${i}`} className="h-4 w-4 fill-yellow-400 text-yellow-400" />);
     }
     
-    if (halfStar) {
-      stars.push(
-        <Star key="half-star" className="h-4 w-4 text-accessOrange" style={{ clipPath: 'inset(0 50% 0 0)', fill: 'currentColor' }} />
-      );
+    if (hasHalfStar) {
+      stars.push(<Star key="half" className="h-4 w-4 text-yellow-400" />);
     }
     
     const emptyStars = 5 - stars.length;
@@ -109,154 +117,156 @@ const CommunityPage = () => {
       stars.push(<Star key={`empty-${i}`} className="h-4 w-4 text-gray-300" />);
     }
     
-    return <div className="flex">{stars}</div>;
+    return stars;
   };
   
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      
-      <main className="flex-1 pt-20">
-        <section className="py-10 px-4 md:px-6 bg-gradient-to-b from-gray-50 to-white">
-          <div className="container mx-auto max-w-6xl">
-            <div className="text-center max-w-3xl mx-auto mb-10">
-              <h1 className="text-3xl md:text-4xl font-bold mb-4">
-                AccessPath Community
-              </h1>
-              
-              <p className="text-xl text-gray-600">
-                Connect with others, share experiences, and find the most up-to-date 
-                accessibility information.
+    <Layout>
+      <main className="flex-1 pt-16">
+        <section className="bg-gradient-to-b from-accessBlue/10 to-white py-16">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="max-w-3xl mx-auto text-center">
+              <h1 className="text-3xl md:text-4xl font-bold mb-4">Accessibility Community</h1>
+              <p className="text-lg text-gray-600 mb-8">
+                Connect with others, share experiences, and learn about accessibility in your area.
               </p>
+              
+              <div className="relative max-w-xl mx-auto">
+                <Input 
+                  type="text" 
+                  placeholder="Search discussions, reviews, or members..." 
+                  className="pl-10 pr-4 py-3 rounded-full"
+                />
+                <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+              </div>
             </div>
-            
-            <div className="bg-white rounded-xl shadow-elevation-1 mb-8">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="w-full border-b grid grid-cols-2">
-                  <TabsTrigger value="discussions" className="py-4 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-accessBlue">
-                    <MessageSquare className="h-5 w-5 mr-2" />
+          </div>
+        </section>
+        
+        <section className="py-12">
+          <div className="container mx-auto px-4 md:px-6">
+            <Tabs defaultValue="discussions" className="w-full" onValueChange={setActiveTab}>
+              <div className="flex justify-between items-center mb-8">
+                <TabsList>
+                  <TabsTrigger value="discussions" className="data-[state=active]:bg-accessBlue data-[state=active]:text-white">
+                    <MessageSquare className="h-4 w-4 mr-2" />
                     Discussions
                   </TabsTrigger>
-                  <TabsTrigger value="reviews" className="py-4 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-accessBlue">
-                    <Star className="h-5 w-5 mr-2" />
+                  <TabsTrigger value="reviews" className="data-[state=active]:bg-accessBlue data-[state=active]:text-white">
+                    <Star className="h-4 w-4 mr-2" />
                     Reviews
+                  </TabsTrigger>
+                  <TabsTrigger value="members" className="data-[state=active]:bg-accessBlue data-[state=active]:text-white">
+                    <User className="h-4 w-4 mr-2" />
+                    Members
                   </TabsTrigger>
                 </TabsList>
                 
-                <div className="p-4">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                      <Input 
-                        placeholder={activeTab === "discussions" ? "Search discussions..." : "Search reviews..."}
-                        className="pl-10"
-                      />
+                <Button variant="outline" size="sm">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filter
+                </Button>
+              </div>
+              
+              <TabsContent value="discussions" className="mt-0">
+                <div className="space-y-6">
+                  {discussions.map(discussion => (
+                    <div key={discussion.id} className="bg-white rounded-xl p-6 shadow-sm border">
+                      <h3 className="text-xl font-semibold mb-2">{discussion.title}</h3>
+                      <div className="flex items-center text-sm text-gray-500 mb-3">
+                        <User className="h-4 w-4 mr-1" />
+                        <span>{discussion.author}</span>
+                        <span className="mx-2">•</span>
+                        <span>{discussion.date}</span>
+                      </div>
+                      <p className="text-gray-700 mb-4">{discussion.excerpt}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center text-gray-500">
+                            <MessageSquare className="h-4 w-4 mr-1" />
+                            <span>{discussion.replies} replies</span>
+                          </div>
+                          <div className="flex items-center text-gray-500">
+                            <ThumbsUp className="h-4 w-4 mr-1" />
+                            <span>{discussion.likes} likes</span>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm">Read More</Button>
+                      </div>
                     </div>
-                    <Button variant="outline" size="icon" className="shrink-0">
-                      <Filter className="h-5 w-5" />
-                    </Button>
-                    <Button className="shrink-0">
-                      {activeTab === "discussions" ? "New Discussion" : "Write Review"}
-                    </Button>
+                  ))}
+                  
+                  <div className="text-center mt-8">
+                    <Button>Load More Discussions</Button>
                   </div>
-                  
-                  <TabsContent value="discussions" className="mt-0">
-                    <div className="space-y-4">
-                      {discussions.map(discussion => (
-                        <div key={discussion.id} className="border rounded-lg p-4 hover:border-accessBlue transition-colors">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center">
-                              <img 
-                                src={discussion.avatar} 
-                                alt={discussion.author}
-                                className="h-8 w-8 rounded-full mr-3"
-                                loading="lazy"
-                              />
-                              <span className="font-medium">{discussion.author}</span>
-                              <span className="text-gray-500 text-sm ml-2">{discussion.time}</span>
-                            </div>
-                            <div className="flex items-center space-x-4 text-sm text-gray-600">
-                              <span className="flex items-center">
-                                <MessageSquare className="h-4 w-4 mr-1" />
-                                {discussion.replies}
-                              </span>
-                              <span className="flex items-center">
-                                <ThumbsUp className="h-4 w-4 mr-1" />
-                                {discussion.likes}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <h3 className="font-semibold text-lg mb-2">{discussion.title}</h3>
-                          <p className="text-gray-600 mb-3">{discussion.excerpt}</p>
-                          
-                          <Button variant="ghost" className="p-0 h-auto text-accessBlue hover:text-accessBlue-dark hover:bg-transparent">
-                            Read more
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="reviews" className="mt-0">
-                    <div className="space-y-4">
-                      {reviews.map(review => (
-                        <div key={review.id} className="border rounded-lg p-4 hover:border-accessBlue transition-colors">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center">
-                              <MapPin className="h-5 w-5 text-accessBlue mr-2" />
-                              <h3 className="font-semibold">{review.location}</h3>
-                            </div>
-                            {renderStars(review.rating)}
-                          </div>
-                          
-                          <p className="text-gray-600 mb-3">{review.content}</p>
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center">
-                              <img 
-                                src={review.avatar} 
-                                alt={review.author}
-                                className="h-6 w-6 rounded-full mr-2"
-                                loading="lazy"
-                              />
-                              <span className="text-sm text-gray-500">
-                                {review.author} • {review.time}
-                              </span>
-                            </div>
-                            <div className="flex space-x-2">
-                              <Button variant="ghost" size="sm" className="h-8">
-                                <ThumbsUp className="h-4 w-4 mr-1" />
-                                Helpful
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </TabsContent>
                 </div>
-              </Tabs>
-            </div>
-            
-            <div className="bg-gray-50 rounded-xl p-6 text-center">
-              <Accessibility className="h-8 w-8 text-accessBlue mx-auto mb-3" />
-              <h2 className="text-xl font-semibold mb-2">Join our accessibility community</h2>
-              <p className="text-gray-600 mb-4">
-                Sign up to participate in discussions, write reviews, and connect with others 
-                passionate about accessibility.
-              </p>
-              <Button className="rounded-full">
-                <User className="h-4 w-4 mr-2" />
-                Create an Account
-              </Button>
-            </div>
+              </TabsContent>
+              
+              <TabsContent value="reviews" className="mt-0">
+                <div className="space-y-6">
+                  {reviews.map(review => (
+                    <div key={review.id} className="bg-white rounded-xl p-6 shadow-sm border">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="text-xl font-semibold">{review.place}</h3>
+                          <div className="flex items-center text-sm text-gray-500">
+                            <MapPin className="h-4 w-4 mr-1" />
+                            <span>{review.location}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center">
+                          {renderStars(review.rating)}
+                          <span className="ml-2 text-sm font-medium">{review.rating}</span>
+                        </div>
+                      </div>
+                      <p className="text-gray-700 mb-4">{review.content}</p>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <User className="h-4 w-4 mr-1" />
+                        <span>{review.author}</span>
+                        <span className="mx-2">•</span>
+                        <span>{review.time}</span>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="text-center mt-8">
+                    <Button>Load More Reviews</Button>
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="members" className="mt-0">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {members.map(member => (
+                    <div key={member.id} className="bg-white rounded-xl p-6 shadow-sm border flex items-center">
+                      <img 
+                        src={member.avatar} 
+                        alt={member.name} 
+                        className="w-16 h-16 rounded-full object-cover mr-4"
+                      />
+                      <div>
+                        <h3 className="font-semibold">{member.name}</h3>
+                        <div className="text-sm text-gray-500 mb-1">Joined {member.joined}</div>
+                        <div className="flex items-center text-accessBlue text-sm">
+                          <Accessibility className="h-4 w-4 mr-1" />
+                          <span>{member.contributions} contributions</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="text-center mt-8">
+                  <Button>View More Members</Button>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </section>
       </main>
       
       <Footer />
-    </div>
+    </Layout>
   );
 };
 

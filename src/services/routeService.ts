@@ -117,19 +117,34 @@ const geocodeAddress = async (address: string): Promise<LatLng | null> => {
       throw new Error('Google Maps not loaded');
     }
 
-    const geocoder = new google.maps.Geocoder();
-    const result = await geocoder.geocode({ address });
-
-    if (result.results && result.results[0]) {
-      const location = result.results[0].geometry.location;
-      return {
-        lat: location.lat(),
-        lng: location.lng()
-      };
+    // Validate address string
+    if (!address || typeof address !== 'string' || address.trim() === '') {
+      throw new Error('Invalid address provided');
     }
-    return null;
+
+    const geocoder = new google.maps.Geocoder();
+    const result = await geocoder.geocode({ address: address.trim() });
+
+    if (!result || !result.results || !result.results[0]) {
+      throw new Error('No results found for the provided address');
+    }
+
+    const location = result.results[0].geometry.location;
+    if (!location || typeof location.lat !== 'function' || typeof location.lng !== 'function') {
+      throw new Error('Invalid location data received from geocoder');
+    }
+
+    return {
+      lat: location.lat(),
+      lng: location.lng()
+    };
   } catch (error) {
     console.error('Geocoding error:', error);
+    toast({
+      title: "Geocoding error",
+      description: error instanceof Error ? error.message : "Could not find the location",
+      variant: "destructive"
+    });
     return null;
   }
 };

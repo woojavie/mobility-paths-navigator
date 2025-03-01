@@ -38,11 +38,23 @@ export const useGoogleMaps = () => {
       
       try {
         setLoading(true);
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 9cb6540f3295a722a4c73840a966a424e6d859d7
         // Get and validate API key
         const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
         if (!apiKey) {
           throw new Error('Google Maps API key is missing. Please check your environment variables.');
+<<<<<<< HEAD
+=======
+        }
+
+        // Only log API key in development
+        if (import.meta.env.DEV) {
+          console.log('API Key validation:', apiKey ? 'Present' : 'Missing');
+>>>>>>> 9cb6540f3295a722a4c73840a966a424e6d859d7
         }
 
         // Debug logging

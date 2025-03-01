@@ -1,6 +1,5 @@
-
 import { useEffect } from 'react';
-import Header from '@/components/layout/Header';
+import { Layout } from '@/components/layout/Layout';
 import AccessMap from '@/components/map/AccessMap';
 
 const MapPage = () => {
@@ -10,12 +9,11 @@ const MapPage = () => {
   }, []);
   
   return (
-    <div className="h-screen flex flex-col">
-      <Header />
+    <Layout>
       <main className="flex-1 pt-16">
         <AccessMap />
       </main>
-    </div>
+    </Layout>
   );
 };
 

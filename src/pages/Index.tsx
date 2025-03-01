@@ -1,6 +1,5 @@
-
 import { useEffect } from 'react';
-import Header from '@/components/layout/Header';
+import { Layout } from '@/components/layout/Layout';
 import Footer from '@/components/layout/Footer';
 import HeroSection from '@/components/hero/HeroSection';
 import FeaturesSection from '@/components/features/FeaturesSection';
@@ -15,9 +14,7 @@ const Index = () => {
   }, []);
   
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      
+    <Layout>
       <main className="flex-1">
         <HeroSection />
         <FeaturesSection />
@@ -27,7 +24,7 @@ const Index = () => {
       </main>
       
       <Footer />
-    </div>
+    </Layout>
   );
 };
 

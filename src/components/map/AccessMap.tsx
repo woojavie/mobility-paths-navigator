@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { 
@@ -19,6 +19,7 @@ import DirectionsPanel from './DirectionsPanel';
 import { ContributionDialog } from './ContributionDialog';
 import { Plus, MapPin, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { fetchExternalAccessibilityPoints } from '@/services/externalAccessibilityService';
 
 // Add type for origin
 type OriginType = google.maps.LatLng | string;
@@ -33,6 +34,19 @@ interface AccessMapProps {
   initialDestination?: string;
   initialPreferences?: PreferencesType;
 }
+
+// Add debounce utility
+const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return function executedFunction(...args: any[]) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 const AccessMap = ({ 
   initialStartLocation, 
@@ -65,11 +79,19 @@ const AccessMap = ({
     type: 'point',
     location: null
   });
+  const [externalPoints, setExternalPoints] = useState<AccessibilityPoint[]>([]);
+  const [isUpdatingMarkers, setIsUpdatingMarkers] = useState(false);
 
   // Extract fetchAccessibilityData to be reusable
   const fetchAccessibilityData = async () => {
+    if (!mapInstance || isUpdatingMarkers) return;
+
     try {
-      // Fetch accessibility points
+      setIsUpdatingMarkers(true);
+      const bounds = mapInstance.getBounds();
+      if (!bounds) return;
+
+      // Fetch local accessibility points
       const { data: pointsData, error: pointsError } = await supabase
         .from('accessibility_points')
         .select('*')
@@ -77,29 +99,40 @@ const AccessMap = ({
       
       if (pointsError) throw pointsError;
       
-      // Fetch accessibility issues
+      // Fetch local accessibility issues
       const { data: issuesData, error: issuesError } = await supabase
         .from('accessibility_issues')
         .select('*')
         .order('created_at', { ascending: false });
       
       if (issuesError) throw issuesError;
+
+      // Fetch external accessibility points
+      const externalPointsData = await fetchExternalAccessibilityPoints({
+        north: bounds.getNorthEast().lat(),
+        south: bounds.getSouthWest().lat(),
+        east: bounds.getNorthEast().lng(),
+        west: bounds.getSouthWest().lng()
+      });
       
       // Cast the types properly to match our defined types
-      setAccessibilityPoints(pointsData?.map(point => ({
-        id: point.id,
-        type: point.type as AccessibilityPointType,
-        name: point.name,
-        description: point.description || null,
-        latitude: point.latitude,
-        longitude: point.longitude,
-        is_operational: point.is_operational,
-        verified: point.verified || false,
-        upvotes: point.upvotes || 0,
-        created_at: point.created_at || null,
-        updated_at: point.updated_at || null,
-        author_id: point.reported_by
-      })) || []);
+      setAccessibilityPoints([
+        ...(pointsData?.map(point => ({
+          id: point.id,
+          type: point.type as AccessibilityPointType,
+          name: point.name,
+          description: point.description || null,
+          latitude: point.latitude,
+          longitude: point.longitude,
+          is_operational: point.is_operational,
+          verified: point.verified || false,
+          upvotes: point.upvotes || 0,
+          created_at: point.created_at || null,
+          updated_at: point.updated_at || null,
+          author_id: point.reported_by
+        })) || []),
+        ...externalPointsData
+      ]);
       
       setAccessibilityIssues(issuesData?.map(issue => ({
         id: issue.id,
@@ -124,9 +157,17 @@ const AccessMap = ({
         description: "Please try again later.",
         variant: "destructive"
       });
+    } finally {
+      setIsUpdatingMarkers(false);
     }
   };
-  
+
+  // Create debounced version of fetchAccessibilityData
+  const debouncedFetchData = useMemo(
+    () => debounce(fetchAccessibilityData, 1000),
+    [mapInstance]
+  );
+
   // Fetch accessibility data from Supabase
   useEffect(() => {
     if (mapLoaded) {
@@ -468,6 +509,17 @@ const AccessMap = ({
       calculateAndDisplayRoute();
     }
   }, [mapLoaded, initialStartLocation, initialDestination]);
+
+  // Add event listener for map bounds changes
+  useEffect(() => {
+    if (mapInstance) {
+      const boundsChangedListener = mapInstance.addListener('bounds_changed', debouncedFetchData);
+
+      return () => {
+        google.maps.event.removeListener(boundsChangedListener);
+      };
+    }
+  }, [mapInstance, debouncedFetchData]);
 
   return (
     <div className="h-screen flex">

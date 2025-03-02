@@ -53,6 +53,10 @@ export function ReplyForm({ discussionId, replyToId, onSuccess }: ReplyFormProps
     }
 
     setIsSubmitting(true);
+    console.log('Starting reply submission process');
+    console.log('Discussion ID:', discussionId);
+    console.log('Reply to ID:', replyToId);
+    console.log('User:', user);
     
     try {
       let content = values.content;
@@ -72,25 +76,80 @@ export function ReplyForm({ discussionId, replyToId, onSuccess }: ReplyFormProps
         parent_reply_id: replyToId
       });
       
-      const reply = await createReply({
-        discussion_id: discussionId,
-        content,
-        user_id: user.id,
-        author: user.email?.split('@')[0] || 'Anonymous',
-        parent_reply_id: replyToId
-      });
-      
-      console.log('Reply created successfully:', reply);
-      
-      toast({
-        title: 'Reply posted!',
-        description: 'Your reply has been successfully added.',
-      });
-      
-      form.reset();
-      
-      if (onSuccess) {
-        onSuccess();
+      try {
+        const reply = await createReply({
+          discussion_id: discussionId,
+          content,
+          user_id: user.id,
+          author: user.email?.split('@')[0] || 'Anonymous',
+          parent_reply_id: replyToId
+        });
+        
+        console.log('Reply created successfully:', reply);
+        
+        toast({
+          title: 'Reply posted!',
+          description: 'Your reply has been successfully added.',
+        });
+        
+        form.reset();
+        
+        if (onSuccess) {
+          console.log('Calling onSuccess callback');
+          onSuccess();
+        }
+      } catch (dbError) {
+        console.error('Database error posting reply:', dbError);
+        
+        let errorMessage = 'There was a problem posting your reply. Please try again.';
+        
+        if (dbError instanceof Error) {
+          console.error('Error details:', dbError.message);
+          
+          if (dbError.message.includes('column "parent_reply_id" does not exist')) {
+            console.error('The parent_reply_id column does not exist in the database');
+            errorMessage = 'The nested reply feature is not fully set up. Please contact the administrator.';
+            
+            // Try again without the parent_reply_id
+            try {
+              console.log('Retrying without parent_reply_id');
+              const reply = await createReply({
+                discussion_id: discussionId,
+                content,
+                user_id: user.id,
+                author: user.email?.split('@')[0] || 'Anonymous',
+                // Omitting parent_reply_id
+              });
+              
+              console.log('Reply created successfully without parent_reply_id:', reply);
+              
+              toast({
+                title: 'Reply posted!',
+                description: 'Your reply has been added as a top-level comment.',
+              });
+              
+              form.reset();
+              
+              if (onSuccess) {
+                console.log('Calling onSuccess callback');
+                onSuccess();
+              }
+              
+              return;
+            } catch (retryError) {
+              console.error('Error on retry without parent_reply_id:', retryError);
+              errorMessage = 'Could not post reply even as a top-level comment. Please try again later.';
+            }
+          } else if (dbError.message.includes('foreign key constraint')) {
+            errorMessage = 'The discussion you are replying to may have been deleted.';
+          }
+        }
+        
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Error posting reply:', error);

@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { MessageSquare, ThumbsUp, User, Loader2 } from 'lucide-react';
+import { MessageSquare, ThumbsUp, User, Loader2, Trash } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { ReplyDialog } from './ReplyDialog';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Discussion, 
   Reply, 
@@ -24,13 +25,15 @@ interface DiscussionDialogProps {
   onClose: () => void;
   discussionId: string;
   onReplySuccess?: () => void;
+  onDelete?: (discussionId: string) => void;
 }
 
 export function DiscussionDialog({ 
   isOpen, 
   onClose, 
   discussionId,
-  onReplySuccess
+  onReplySuccess,
+  onDelete
 }: DiscussionDialogProps) {
   const [discussion, setDiscussion] = useState<Discussion | null>(null);
   const [replies, setReplies] = useState<Reply[]>([]);
@@ -289,12 +292,68 @@ export function DiscussionDialog({
     setIsReplyDialogOpen(true);
   };
 
+  // Handle deleting a discussion
+  const handleDeleteDiscussion = async () => {
+    if (!user || !discussion) return;
+    
+    if (confirm("Are you sure you want to delete this discussion? This action cannot be undone.")) {
+      try {
+        const { error } = await supabase
+          .from('discussions')
+          .delete()
+          .eq('id', discussionId)
+          .eq('user_id', user.id);
+          
+        if (error) {
+          console.error('Error deleting discussion:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to delete discussion. Please try again.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        toast({
+          title: 'Discussion deleted',
+          description: 'Your discussion has been deleted successfully.',
+        });
+        
+        // Close the dialog
+        onClose();
+        
+        // Call the onDelete callback if provided
+        if (onDelete) {
+          onDelete(discussionId);
+        }
+      } catch (error) {
+        console.error('Error deleting discussion:', error);
+        toast({
+          title: 'Error',
+          description: 'An unexpected error occurred. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">
-            {isLoading ? 'Loading Discussion...' : discussion?.title || 'Discussion'}
+          <DialogTitle className="text-2xl font-bold flex items-center justify-between">
+            <span>{isLoading ? 'Loading Discussion...' : discussion?.title || 'Discussion'}</span>
+            {user && discussion && user.id === discussion.user_id && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-red-500 hover:text-red-700"
+                onClick={handleDeleteDiscussion}
+              >
+                <Trash className="h-4 w-4 mr-1" />
+                Delete
+              </Button>
+            )}
           </DialogTitle>
           <DialogDescription>
             View the full discussion and replies

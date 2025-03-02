@@ -12,7 +12,8 @@ import {
   Bell,
   Users,
   Plus,
-  X
+  X,
+  Trash
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -409,6 +410,46 @@ const CommunityPage = () => {
     });
   };
   
+  // Handle deleting a discussion
+  const handleDeleteDiscussion = async (discussionId: string) => {
+    if (!user) return;
+    
+    if (confirm("Are you sure you want to delete this discussion? This action cannot be undone.")) {
+      try {
+        const { error } = await supabase
+          .from('discussions')
+          .delete()
+          .eq('id', discussionId)
+          .eq('user_id', user.id);
+          
+        if (error) {
+          console.error('Error deleting discussion:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to delete discussion. Please try again.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        // Remove the deleted discussion from the state
+        setDiscussions(prev => prev.filter(d => d.id !== discussionId));
+        
+        toast({
+          title: 'Discussion deleted',
+          description: 'Your discussion has been deleted successfully.',
+        });
+      } catch (error) {
+        console.error('Error deleting discussion:', error);
+        toast({
+          title: 'Error',
+          description: 'An unexpected error occurred. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    }
+  };
+  
   return (
     <Layout>
       <main className="flex-1 pt-16">
@@ -578,6 +619,17 @@ const CommunityPage = () => {
                               <MessageSquare className="h-4 w-4 mr-1" />
                               <span>{discussion.replies_count || 0} replies</span>
                             </div>
+                            {user && discussion.user_id === user.id && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-red-500 hover:text-red-700"
+                                onClick={() => handleDeleteDiscussion(discussion.id)}
+                              >
+                                <Trash className="h-4 w-4 mr-1" />
+                                Delete
+                              </Button>
+                            )}
                           </div>
                           <div className="flex space-x-2">
                             <Button 
@@ -718,6 +770,7 @@ const CommunityPage = () => {
           onClose={() => setIsDiscussionDialogOpen(false)}
           discussionId={discussionDialogId}
           onReplySuccess={handleDiscussionDialogReplySuccess}
+          onDelete={handleDeleteDiscussion}
         />
       )}
     </Layout>

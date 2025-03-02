@@ -14,6 +14,7 @@ import {
   FormItem,
   FormMessage,
 } from '@/components/ui/form';
+import { Loader2, MessageSquare } from 'lucide-react';
 
 const formSchema = z.object({
   content: z.string().min(3, {
@@ -63,13 +64,23 @@ export function ReplyForm({ discussionId, replyToId, onSuccess }: ReplyFormProps
         content = `[Reply] ${content}`;
       }
       
-      await createReply({
+      console.log('Submitting reply:', {
         discussion_id: discussionId,
         content,
         user_id: user.id,
         author: user.email?.split('@')[0] || 'Anonymous',
         parent_reply_id: replyToId
       });
+      
+      const reply = await createReply({
+        discussion_id: discussionId,
+        content,
+        user_id: user.id,
+        author: user.email?.split('@')[0] || 'Anonymous',
+        parent_reply_id: replyToId
+      });
+      
+      console.log('Reply created successfully:', reply);
       
       toast({
         title: 'Reply posted!',
@@ -83,9 +94,20 @@ export function ReplyForm({ discussionId, replyToId, onSuccess }: ReplyFormProps
       }
     } catch (error) {
       console.error('Error posting reply:', error);
+      
+      let errorMessage = 'There was a problem posting your reply. Please try again.';
+      
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        
+        if (error.message.includes('foreign key constraint')) {
+          errorMessage = 'The discussion you are replying to may have been deleted.';
+        }
+      }
+      
       toast({
         title: 'Error',
-        description: 'There was a problem posting your reply. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -104,7 +126,7 @@ export function ReplyForm({ discussionId, replyToId, onSuccess }: ReplyFormProps
               <FormControl>
                 <Textarea 
                   placeholder={replyToId ? "Write your reply..." : "Add to the discussion..."} 
-                  className={replyToId ? "min-h-[80px]" : "min-h-[100px]"}
+                  className={replyToId ? "min-h-[80px] border-primary/30 focus-visible:ring-primary/50" : "min-h-[100px] border-primary/30 focus-visible:ring-primary/50"}
                   {...field} 
                 />
               </FormControl>
@@ -114,8 +136,23 @@ export function ReplyForm({ discussionId, replyToId, onSuccess }: ReplyFormProps
         />
         
         <div className="flex justify-end">
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Posting...' : 'Post Reply'}
+          <Button 
+            type="submit" 
+            disabled={isSubmitting}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 text-lg"
+            size="lg"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Posting...
+              </>
+            ) : (
+              <>
+                <MessageSquare className="mr-2 h-5 w-5" />
+                Post Reply
+              </>
+            )}
           </Button>
         </div>
       </form>

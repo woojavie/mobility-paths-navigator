@@ -129,14 +129,16 @@ export const createReply = async (reply: Omit<Reply, 'id' | 'created_at' | 'upda
 
 // Helper function to validate like parameters
 const validateLikeParams = (operation: string, userId: string, discussionId?: string, replyId?: string) => {
+  if (!userId) {
+    const errorMsg = `Error ${operation} like: User ID is required`;
+    console.error(errorMsg);
+    throw new Error('User ID is required');
+  }
+  
   if ((!discussionId && !replyId) || (discussionId && replyId)) {
     const errorMsg = `Error ${operation} like: Either discussionId OR replyId must be provided, but not both or neither`;
     console.error(errorMsg);
     throw new Error('Invalid parameters: Either discussionId OR replyId must be provided');
-  }
-  
-  if (!userId) {
-    throw new Error('User ID is required');
   }
 };
 
@@ -169,6 +171,15 @@ export const checkIfLiked = async (userId: string, discussionId?: string, replyI
 export const addLike = async (userId: string, discussionId?: string, replyId?: string) => {
   validateLikeParams('adding', userId, discussionId, replyId);
 
+  // First check if already liked to provide a better error message
+  const isAlreadyLiked = await checkIfLiked(userId, discussionId, replyId);
+  if (isAlreadyLiked) {
+    const target = discussionId ? 'discussion' : 'reply';
+    const errorMsg = `User ${userId} has already liked this ${target}`;
+    console.error(errorMsg);
+    throw new Error(`You have already liked this ${target}`);
+  }
+
   const { data, error } = await supabase
     .from('discussion_likes')
     .insert([{
@@ -180,6 +191,14 @@ export const addLike = async (userId: string, discussionId?: string, replyId?: s
     
   if (error) {
     console.error('Error adding like:', error);
+    
+    // Provide more specific error messages
+    if (error.code === '23505') { // Unique violation
+      throw new Error('You have already liked this item');
+    } else if (error.code === '23503') { // Foreign key violation
+      throw new Error('The item you are trying to like may have been deleted');
+    }
+    
     throw error;
   }
   
@@ -189,6 +208,15 @@ export const addLike = async (userId: string, discussionId?: string, replyId?: s
 // Unlike a discussion or reply
 export const removeLike = async (userId: string, discussionId?: string, replyId?: string) => {
   validateLikeParams('removing', userId, discussionId, replyId);
+
+  // First check if the like exists
+  const isLiked = await checkIfLiked(userId, discussionId, replyId);
+  if (!isLiked) {
+    const target = discussionId ? 'discussion' : 'reply';
+    const errorMsg = `User ${userId} has not liked this ${target}`;
+    console.error(errorMsg);
+    throw new Error(`You have not liked this ${target}`);
+  }
 
   let query = supabase
     .from('discussion_likes')
@@ -205,6 +233,12 @@ export const removeLike = async (userId: string, discussionId?: string, replyId?
   
   if (error) {
     console.error('Error removing like:', error);
+    
+    // Provide more specific error messages
+    if (error.code === '23503') { // Foreign key violation
+      throw new Error('The item you are trying to unlike may have been deleted');
+    }
+    
     throw error;
   }
   

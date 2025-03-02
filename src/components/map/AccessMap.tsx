@@ -297,33 +297,19 @@ const AccessMap = ({
         setRoutePolyline(null);
       }
 
-      let origin: string | Coordinates;
-      try {
-        origin = startLocation === 'Current location'
-          ? await getCurrentPosition()
-          : startLocation.trim();
-      } catch (error) {
-        toast({
-          title: "Location error",
-          description: "Could not get current location. Please enter a start location manually.",
-          variant: "destructive"
-        });
-        return;
-      }
-
       const route = await calculateRoute(originCoords, endLocation, preferences);
       
-      if (route) {
-        // Create and display the route polyline using the path points
+      if (route && route.path && route.path.length > 0) {
+        // Create and display the route polyline
         const newPolyline = new google.maps.Polyline({
           path: route.path,
           geodesic: true,
           strokeColor: '#2563eb',
           strokeOpacity: 1.0,
           strokeWeight: 3,
+          map: mapInstance // Directly set the map here
         });
         
-        newPolyline.setMap(mapInstance);
         setRoutePolyline(newPolyline);
         setCurrentRoute(route);
         setIsDirectionsOpen(true);
@@ -332,6 +318,20 @@ const AccessMap = ({
         const bounds = new google.maps.LatLngBounds();
         route.path.forEach((point) => bounds.extend(point));
         mapInstance.fitBounds(bounds);
+
+        // Add some padding to the bounds
+        mapInstance.fitBounds(bounds, {
+          top: 50,
+          right: 50,
+          bottom: 50,
+          left: 50
+        });
+      } else {
+        toast({
+          title: "Route Error",
+          description: "Could not find a valid route between these locations.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Route calculation error:', error);
@@ -341,7 +341,7 @@ const AccessMap = ({
         variant: "destructive"
       });
     }
-  }, [mapInstance, startLocation, endLocation, preferences]);
+  }, [mapInstance, startLocation, endLocation, preferences, routePolyline]);
 
   const handleFindRoute = useCallback(async () => {
     if (!mapInstance || !startLocation || !endLocation) {
@@ -555,11 +555,6 @@ const AccessMap = ({
                 isOpen={isDirectionsOpen}
                 onClose={() => {
                   setIsDirectionsOpen(false);
-                  setCurrentRoute(null);
-                  if (routePolyline) {
-                    routePolyline.setMap(null);
-                    setRoutePolyline(null);
-                  }
                 }}
                 steps={currentRoute.steps}
                 totalDistance={currentRoute.totalDistance}

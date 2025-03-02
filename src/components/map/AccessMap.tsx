@@ -471,14 +471,7 @@ const AccessMap = ({
   }, [mapLoaded, initialStartLocation, initialDestination]);
 
   return (
-    <div className="h-screen w-full flex relative overflow-hidden">
-      {/* Map Controls */}
-      <MapControls 
-        isSidebarOpen={isSidebarOpen} 
-        toggleSidebar={toggleSidebar}
-        mapInstance={mapInstance}
-      />
-      
+    <div className="h-screen flex">
       {/* Map Container */}
       <div className="flex-1 relative">
         <div ref={mapRef} className="h-full w-full" />

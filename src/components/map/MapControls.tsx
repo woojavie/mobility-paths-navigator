@@ -17,7 +17,7 @@ const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance }: MapControlsP
       mapInstance.setCenter(position);
       mapInstance.setZoom(17);
 
-      // Create a pulsing dot marker for current location
+      // Create a stationary dot marker for current location
       new google.maps.Marker({
         position,
         map: mapInstance,
@@ -25,11 +25,11 @@ const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance }: MapControlsP
           path: google.maps.SymbolPath.CIRCLE,
           scale: 10,
           fillColor: '#2563EB',
-          fillOpacity: 1,
+          fillOpacity: 0.8,
           strokeColor: '#ffffff',
           strokeWeight: 2,
+          strokeOpacity: 1
         },
-        animation: google.maps.Animation.BOUNCE,
         title: 'Your Location'
       });
 
@@ -38,10 +38,31 @@ const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance }: MapControlsP
         description: "Map centered on your current location",
       });
     } catch (error) {
+      console.error('Location error:', error);
+      
+      // Provide more specific error messages based on the error code
+      let errorMessage = "Could not get your current location. ";
+      if (error instanceof GeolocationPositionError) {
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage += "Please allow location access in your browser settings. Click the location icon in your address bar and select 'Allow'.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage += "Location information is unavailable. Please try again or check if your device's GPS is enabled.";
+            break;
+          case error.TIMEOUT:
+            errorMessage += "Location request timed out. Please check your internet connection and try again.";
+            break;
+          default:
+            errorMessage += "Please check your browser settings and try again.";
+        }
+      }
+
       toast({
         title: "Location Error",
-        description: "Could not get your current location. Please check your browser settings.",
-        variant: "destructive"
+        description: errorMessage,
+        variant: "destructive",
+        duration: 7000 // Show for longer since the message is longer
       });
     }
   };
@@ -65,7 +86,7 @@ const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance }: MapControlsP
         },
         {
           enableHighAccuracy: true,
-          timeout: 5000,
+          timeout: 10000, // Increased timeout to 10 seconds
           maximumAge: 0
         }
       );

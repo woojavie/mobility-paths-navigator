@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Filter, Layers, Navigation } from 'lucide-react';
+import { ArrowRight, Navigation } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { useState } from 'react';
 
@@ -128,22 +128,6 @@ const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance, setStartLocati
         aria-label="Toggle sidebar"
       >
         {isSidebarOpen ? <ArrowRight className="h-5 w-5" /> : <ArrowRight className="h-5 w-5 rotate-180" />}
-      </Button>
-      <Button 
-        variant="secondary" 
-        size="icon" 
-        className="rounded-full glass-morphism shadow-button"
-        aria-label="Filter map"
-      >
-        <Filter className="h-5 w-5" />
-      </Button>
-      <Button 
-        variant="secondary" 
-        size="icon" 
-        className="rounded-full glass-morphism shadow-button"
-        aria-label="Change layers"
-      >
-        <Layers className="h-5 w-5" />
       </Button>
       <Button 
         variant="secondary" 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Search, ArrowRight, Accessibility, Route, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import LocationSearchInput from '@/components/map/LocationSearchInput';
 
 const HeroSection = () => {
   const navigate = useNavigate();
@@ -41,59 +41,19 @@ const HeroSection = () => {
       }
     });
   };
-  
+
   return (
-    <section className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-gray-50 px-4 md:px-6 pt-20 pb-16">
-      <div className="container max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
-        <div className={`space-y-6 ${isVisible ? 'animate-slide-up opacity-100' : 'opacity-0'}`}>
-          <div className="inline-flex items-center px-3 py-1 rounded-full bg-accessGreen-light text-accessGreen-dark text-sm font-medium">
-            <Accessibility className="h-4 w-4 mr-2" />
-            <span>Accessible navigation made simple</span>
+    <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-b from-accessBlue/5 to-white py-20">
+      <div className={`container mx-auto px-4 transition-all duration-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-accessBlue to-accessGreen bg-clip-text text-transparent">
+              Navigate Your World Without Barriers
+            </h1>
+            <p className="text-lg md:text-xl text-gray-600 mb-8">
+              Find accessible routes and discover wheelchair-friendly places in your city
+            </p>
           </div>
-          
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900">
-            Navigate with <span className="text-accessBlue">confidence</span>
-          </h1>
-          
-          <p className="text-xl text-gray-600 max-w-lg">
-            PathAble helps people with mobility challenges find and navigate accessible routes with detailed accessibility information.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button 
-              size="lg" 
-              onClick={() => navigate('/map')}
-              className="rounded-full shadow-button"
-            >
-              Explore Accessible Routes
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="lg"
-              className="rounded-full"
-              onClick={() => navigate('/contribute')}
-            >
-              Contribute Data
-            </Button>
-          </div>
-          
-          <div className="flex items-center space-x-6 pt-4">
-            <div className="flex items-center">
-              <Route className="h-5 w-5 text-accessBlue mr-2" />
-              <span className="text-gray-600">Wheelchair accessible routes</span>
-            </div>
-            <div className="flex items-center">
-              <Star className="h-5 w-5 text-accessOrange mr-2" />
-              <span className="text-gray-600">Community verified</span>
-            </div>
-          </div>
-        </div>
-        
-        <div className={`relative ${isVisible ? 'animate-slide-up opacity-100 animate-delay-200' : 'opacity-0'}`}>
-          <div className="absolute -top-20 -left-20 w-72 h-72 bg-accessBlue/5 rounded-full filter blur-3xl"></div>
-          <div className="absolute -bottom-20 -right-20 w-72 h-72 bg-accessGreen/5 rounded-full filter blur-3xl"></div>
           
           <div className="relative glass-morphism rounded-2xl p-6 shadow-glass overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accessBlue to-accessGreen"></div>
@@ -101,80 +61,77 @@ const HeroSection = () => {
             <h3 className="text-lg font-medium mb-4">Find Accessible Routes</h3>
             
             <div className="space-y-4">
-              <div className="relative">
-                <MapPin className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                <Input 
-                  placeholder="Current location"
-                  className="pl-10 rounded-lg border border-gray-200"
-                  value={startLocation}
-                  onChange={(e) => setStartLocation(e.target.value)}
-                />
-              </div>
+              <LocationSearchInput
+                placeholder="Current location"
+                value={startLocation}
+                onChange={setStartLocation}
+                className="w-full"
+              />
               
-              <div className="relative">
-                <MapPin className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                <Input 
-                  placeholder="Where to?"
-                  className="pl-10 rounded-lg border border-gray-200"
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                />
-              </div>
+              <LocationSearchInput
+                placeholder="Where to?"
+                value={destination}
+                onChange={setDestination}
+                className="w-full"
+              />
               
-              <div className="grid grid-cols-2 gap-3">
-                <Button 
-                  variant={preferences.wheelchairAccessible ? "default" : "outline"} 
-                  className="rounded-lg border border-gray-200"
-                  onClick={() => setPreferences(prev => ({ ...prev, wheelchairAccessible: !prev.wheelchairAccessible }))}
-                >
-                  <Accessibility className="h-4 w-4 mr-2" />
-                  Wheelchair
-                </Button>
-                <Button 
-                  variant={preferences.avoidStairs ? "default" : "outline"}
-                  className="rounded-lg border border-gray-200"
-                  onClick={() => setPreferences(prev => ({ ...prev, avoidStairs: !prev.avoidStairs }))}
-                >
-                  <Route className="h-4 w-4 mr-2" />
-                  Avoid Stairs
-                </Button>
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center space-x-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={preferences.wheelchairAccessible}
+                    onChange={(e) => setPreferences(prev => ({ ...prev, wheelchairAccessible: e.target.checked }))}
+                    className="rounded border-gray-300 text-accessBlue focus:ring-accessBlue"
+                  />
+                  <span>Wheelchair accessible</span>
+                </label>
+                
+                <label className="flex items-center space-x-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={preferences.avoidStairs}
+                    onChange={(e) => setPreferences(prev => ({ ...prev, avoidStairs: e.target.checked }))}
+                    className="rounded border-gray-300 text-accessBlue focus:ring-accessBlue"
+                  />
+                  <span>Avoid stairs</span>
+                </label>
               </div>
               
               <Button 
-                className="w-full rounded-lg" 
+                className="w-full" 
+                size="lg" 
                 onClick={handleFindRoute}
                 disabled={!startLocation || !destination}
               >
+                <Route className="w-5 h-5 mr-2" />
                 Find Route
-                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
+          </div>
+          
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-accessBlue/10 flex items-center justify-center">
+                <Accessibility className="w-6 h-6 text-accessBlue" />
+              </div>
+              <h3 className="font-medium mb-2">Accessible Routes</h3>
+              <p className="text-sm text-gray-600">Find wheelchair-friendly paths with detailed accessibility information</p>
+            </div>
             
-            <div className="mt-6 bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium mb-2">Popular Accessible Destinations</h4>
-              <ul className="space-y-2 text-sm">
-                <li 
-                  className="flex items-center hover:text-accessBlue cursor-pointer transition-colors"
-                  onClick={() => setDestination("Central Park (Accessible Entrance)")}
-                >
-                  <MapPin className="h-4 w-4 mr-2 text-accessBlue" />
-                  Central Park (Accessible Entrance)
-                </li>
-                <li 
-                  className="flex items-center hover:text-accessBlue cursor-pointer transition-colors"
-                  onClick={() => setDestination("Metropolitan Museum of Art")}
-                >
-                  <MapPin className="h-4 w-4 mr-2 text-accessBlue" />
-                  Metropolitan Museum of Art
-                </li>
-                <li 
-                  className="flex items-center hover:text-accessBlue cursor-pointer transition-colors"
-                  onClick={() => setDestination("Times Square Visitor Center")}
-                >
-                  <MapPin className="h-4 w-4 mr-2 text-accessBlue" />
-                  Times Square Visitor Center
-                </li>
-              </ul>
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-accessGreen/10 flex items-center justify-center">
+                <MapPin className="w-6 h-6 text-accessGreen" />
+              </div>
+              <h3 className="font-medium mb-2">Points of Interest</h3>
+              <p className="text-sm text-gray-600">Discover accessible locations, entrances, and facilities nearby</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-accessOrange/10 flex items-center justify-center">
+                <Star className="w-6 h-6 text-accessOrange" />
+              </div>
+              <h3 className="font-medium mb-2">Community Driven</h3>
+              <p className="text-sm text-gray-600">Share and learn from others' experiences and accessibility reviews</p>
             </div>
           </div>
         </div>

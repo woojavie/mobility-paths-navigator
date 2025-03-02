@@ -41,6 +41,8 @@ export const useGoogleMaps = () => {
 
         // Get and validate API key
         const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+        console.log('Environment variables:', import.meta.env);
+        console.log('API Key exists:', !!apiKey);
         if (!apiKey) {
           throw new Error('Google Maps API key is missing. Please check your environment variables.');
         }
@@ -61,6 +63,7 @@ export const useGoogleMaps = () => {
 
         if (!isMounted) return;
         
+        console.log('Creating map instance...');
         const map = new googleMaps.maps.Map(mapRef.current, {
           center: { lat: 49.2666656, lng: -123.249999 },
           zoom: 14,
@@ -73,6 +76,7 @@ export const useGoogleMaps = () => {
             position: googleMaps.maps.ControlPosition.RIGHT_TOP
           }
         });
+        console.log('Map instance created successfully');
 
         // Add resize event listener to the map
         googleMaps.maps.event.addListenerOnce(map, 'idle', () => {

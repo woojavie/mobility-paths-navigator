@@ -1,4 +1,3 @@
-
 // Type definitions for Google Maps
 export type GoogleMapType = google.maps.Map;
 export type MarkerType = google.maps.Marker;
@@ -17,6 +16,10 @@ export type AccessibilityPoint = {
   longitude: number;
   is_operational: boolean;
   verified: boolean;
+  upvotes: number;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
 };
 
 export type AccessibilityIssue = {
@@ -29,6 +32,10 @@ export type AccessibilityIssue = {
   start_date: string;
   end_date: string | null;
   verified: boolean;
+  upvotes: number;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
 };
 
 export type PreferencesType = {

@@ -1,14 +1,14 @@
-import { Navbar } from './Navbar'
+import Header from './Header';
 
 interface LayoutProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 export const Layout = ({ children }: LayoutProps) => {
   return (
     <div className="flex min-h-screen flex-col">
-      <Navbar />
-      <main className="flex-1">{children}</main>
+      <Header />
+      <main className="flex-1 pt-16">{children}</main>
     </div>
-  )
-} 
+  );
+}; 

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/components/ui/use-toast";
 import { AccessibilityPointType, AccessibilityIssueType } from './types';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ContributionDialogProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export function ContributionDialog({ isOpen, onClose, type, location }: Contribu
     description: '',
     isOperational: true
   });
+  const { user } = useAuth();
 
   const pointTypes: AccessibilityPointType[] = [
     'elevator',
@@ -46,6 +48,15 @@ export function ContributionDialog({ isOpen, onClose, type, location }: Contribu
     e.preventDefault();
     setIsSubmitting(true);
 
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to contribute.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       if (type === 'point') {
         await supabase.from('accessibility_points').insert([
@@ -55,7 +66,10 @@ export function ContributionDialog({ isOpen, onClose, type, location }: Contribu
             description: formData.description || null,
             latitude: location.lat,
             longitude: location.lng,
-            is_operational: formData.isOperational
+            is_operational: formData.isOperational,
+            user_id: user.id,
+            verified: false,
+            upvotes: 0
           }
         ]);
         toast({
@@ -70,7 +84,10 @@ export function ContributionDialog({ isOpen, onClose, type, location }: Contribu
             description: formData.description || null,
             latitude: location.lat,
             longitude: location.lng,
-            start_date: new Date().toISOString()
+            start_date: new Date().toISOString(),
+            user_id: user.id,
+            verified: false,
+            upvotes: 0
           }
         ]);
         toast({
@@ -91,7 +108,7 @@ export function ContributionDialog({ isOpen, onClose, type, location }: Contribu
       console.error('Error submitting contribution:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit. Please try again.",
+        description: "Failed to submit your contribution. Please try again.",
         variant: "destructive"
       });
     } finally {

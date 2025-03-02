@@ -441,6 +441,7 @@ const AccessMap = () => {
         isSidebarOpen={isSidebarOpen} 
         toggleSidebar={toggleSidebar}
         mapInstance={mapInstance}
+        setStartLocation={setStartLocation}
       />
       
       {/* Map Container */}

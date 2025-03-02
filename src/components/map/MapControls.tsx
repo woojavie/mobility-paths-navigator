@@ -1,24 +1,36 @@
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Filter, Layers, Navigation } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { useState } from 'react';
 
 type MapControlsProps = {
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
   mapInstance: google.maps.Map | null;
+  setStartLocation?: (location: string) => void;
 };
 
-const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance }: MapControlsProps) => {
+const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance, setStartLocation }: MapControlsProps) => {
+  const [currentLocationMarker, setCurrentLocationMarker] = useState<google.maps.Marker | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+
   const handleCurrentLocation = async () => {
     if (!mapInstance) return;
+    
+    setIsLocating(true);
 
     try {
+      // Clear existing marker if any
+      if (currentLocationMarker) {
+        currentLocationMarker.setMap(null);
+      }
+
       const position = await getCurrentPosition();
       mapInstance.setCenter(position);
       mapInstance.setZoom(17);
 
       // Create a stationary dot marker for current location
-      new google.maps.Marker({
+      const marker = new google.maps.Marker({
         position,
         map: mapInstance,
         icon: {
@@ -32,6 +44,17 @@ const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance }: MapControlsP
         },
         title: 'Your Location'
       });
+
+      setCurrentLocationMarker(marker);
+
+      // Reverse geocode the coordinates to get the address
+      const geocoder = new google.maps.Geocoder();
+      const results = await geocoder.geocode({ location: position });
+      
+      if (results.results[0] && setStartLocation) {
+        const address = results.results[0].formatted_address;
+        setStartLocation(address);
+      }
 
       toast({
         title: "Location Found",
@@ -62,8 +85,10 @@ const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance }: MapControlsP
         title: "Location Error",
         description: errorMessage,
         variant: "destructive",
-        duration: 7000 // Show for longer since the message is longer
+        duration: 7000
       });
+    } finally {
+      setIsLocating(false);
     }
   };
 
@@ -86,7 +111,7 @@ const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance }: MapControlsP
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000, // Increased timeout to 10 seconds
+          timeout: 10000,
           maximumAge: 0
         }
       );
@@ -123,11 +148,14 @@ const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance }: MapControlsP
       <Button 
         variant="secondary" 
         size="icon" 
-        className="rounded-full glass-morphism shadow-button hover:bg-accessBlue hover:text-white transition-colors"
+        className={`rounded-full glass-morphism shadow-button hover:bg-accessBlue hover:text-white transition-colors ${
+          isLocating ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
         aria-label="My location"
         onClick={handleCurrentLocation}
+        disabled={isLocating}
       >
-        <Navigation className="h-5 w-5" />
+        <Navigation className={`h-5 w-5 ${isLocating ? 'animate-pulse' : ''}`} />
       </Button>
     </div>
   );

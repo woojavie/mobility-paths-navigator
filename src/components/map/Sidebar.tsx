@@ -8,7 +8,7 @@ import { AccessibilityPoint, GoogleMapType, PreferencesType, AccessibilityIssue 
 import RouteTab from './RouteTab';
 import ExploreTab from './ExploreTab';
 import SavedTab from './SavedTab';
-import { CommunityTab } from './CommunityTab';
+import CommunityTab from './CommunityTab';
 
 type SidebarProps = {
   isSidebarOpen: boolean;

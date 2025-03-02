@@ -13,19 +13,21 @@ import { useAuth } from '@/contexts/AuthContext';
 interface ContributionDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess: () => void;
   type: 'point' | 'issue';
-  location: { lat: number; lng: number };
+  location: { lat: number; lng: number } | null;
 }
 
-export function ContributionDialog({ isOpen, onClose, type, location }: ContributionDialogProps) {
+export function ContributionDialog({ isOpen, onClose, onSuccess, type, location }: ContributionDialogProps) {
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    type: '',
+    type: type === 'point' ? 'elevator' as AccessibilityPointType : 'construction' as AccessibilityIssueType,
     description: '',
+    endDate: '',
     isOperational: true
   });
-  const { user } = useAuth();
 
   const pointTypes: AccessibilityPointType[] = [
     'elevator',
@@ -46,64 +48,65 @@ export function ContributionDialog({ isOpen, onClose, type, location }: Contribu
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!location || !user) return;
+
     setIsSubmitting(true);
-
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to contribute.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
       if (type === 'point') {
-        await supabase.from('accessibility_points').insert([
-          {
+        const { error } = await supabase
+          .from('accessibility_points')
+          .insert([{
             name: formData.name,
             type: formData.type as AccessibilityPointType,
             description: formData.description || null,
             latitude: location.lat,
             longitude: location.lng,
             is_operational: formData.isOperational,
-            user_id: user.id,
             verified: false,
-            upvotes: 0
-          }
-        ]);
-        toast({
-          title: "Success",
-          description: "Accessibility point added successfully!",
-        });
+            reported_by: user.id,
+            upvotes: 0,
+            image_url: null
+          }]);
+
+        if (error) throw error;
       } else {
-        await supabase.from('accessibility_issues').insert([
-          {
+        const { error } = await supabase
+          .from('accessibility_issues')
+          .insert([{
             title: formData.name,
             type: formData.type as AccessibilityIssueType,
             description: formData.description || null,
             latitude: location.lat,
             longitude: location.lng,
             start_date: new Date().toISOString(),
-            user_id: user.id,
+            end_date: formData.endDate || null,
             verified: false,
-            upvotes: 0
-          }
-        ]);
-        toast({
-          title: "Success",
-          description: "Issue reported successfully!",
-        });
+            reported_by: user.id,
+            upvotes: 0,
+            image_url: null
+          }]);
+
+        if (error) throw error;
       }
 
-      // Reset form and close dialog
+      toast({
+        title: "Success!",
+        description: `Your accessibility ${type} has been added to the map.`,
+      });
+
+      // Reset form data
       setFormData({
         name: '',
-        type: '',
+        type: type === 'point' ? 'elevator' as AccessibilityPointType : 'construction' as AccessibilityIssueType,
         description: '',
+        endDate: '',
         isOperational: true
       });
+
+      // Call onSuccess before closing
+      onSuccess();
       onClose();
+
     } catch (error) {
       console.error('Error submitting contribution:', error);
       toast({
@@ -119,11 +122,21 @@ export function ContributionDialog({ isOpen, onClose, type, location }: Contribu
   const handleClose = () => {
     setFormData({
       name: '',
-      type: '',
+      type: type === 'point' ? 'elevator' as AccessibilityPointType : 'construction' as AccessibilityIssueType,
       description: '',
+      endDate: '',
       isOperational: true
     });
     onClose();
+  };
+
+  const handleTypeChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      type: type === 'point' 
+        ? value as AccessibilityPointType 
+        : value as AccessibilityIssueType
+    }));
   };
 
   return (
@@ -158,7 +171,7 @@ export function ContributionDialog({ isOpen, onClose, type, location }: Contribu
             <Label htmlFor="type">Type</Label>
             <Select
               value={formData.type}
-              onValueChange={(value) => setFormData({ ...formData, type: value })}
+              onValueChange={handleTypeChange}
               required
             >
               <SelectTrigger>
@@ -195,6 +208,18 @@ export function ContributionDialog({ isOpen, onClose, type, location }: Contribu
                 className="rounded border-gray-300"
               />
               <Label htmlFor="isOperational">Currently operational</Label>
+            </div>
+          )}
+
+          {type === 'issue' && (
+            <div className="space-y-2">
+              <Label htmlFor="endDate">Expected End Date (Optional)</Label>
+              <Input
+                type="date"
+                id="endDate"
+                value={formData.endDate}
+                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+              />
             </div>
           )}
 

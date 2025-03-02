@@ -77,16 +77,34 @@ const AccessMap = () => {
       
       // Cast the types properly to match our defined types
       setAccessibilityPoints(pointsData?.map(point => ({
-        ...point,
+        id: point.id,
         type: point.type as AccessibilityPointType,
+        name: point.name,
         description: point.description || null,
+        latitude: point.latitude,
+        longitude: point.longitude,
+        is_operational: point.is_operational,
+        verified: point.verified || null,
+        upvotes: point.upvotes || null,
+        created_at: point.created_at || null,
+        updated_at: point.updated_at || null,
+        author_id: point.reported_by
       })) || []);
       
       setAccessibilityIssues(issuesData?.map(issue => ({
-        ...issue,
+        id: issue.id,
         type: issue.type as AccessibilityIssueType,
+        title: issue.title,
         description: issue.description || null,
+        latitude: issue.latitude,
+        longitude: issue.longitude,
+        start_date: issue.start_date || null,
         end_date: issue.end_date || null,
+        verified: issue.verified || null,
+        upvotes: issue.upvotes || null,
+        created_at: issue.created_at || null,
+        updated_at: issue.updated_at || null,
+        author_id: issue.reported_by
       })) || []);
       
     } catch (error) {
@@ -364,10 +382,11 @@ const AccessMap = () => {
 
   // Add function to close contribution dialog
   const closeContributionDialog = () => {
-    setContributionDialog(prev => ({
-      ...prev,
-      isOpen: false
-    }));
+    setContributionDialog({
+      isOpen: false,
+      type: 'point',
+      location: null
+    });
   };
 
   // Add real-time subscription for points and issues
@@ -435,93 +454,71 @@ const AccessMap = () => {
   }, [mapInstance, infoWindow]);
 
   return (
-    <div className="h-screen w-full flex relative overflow-hidden">
-      {/* Map Controls */}
-      <MapControls 
-        isSidebarOpen={isSidebarOpen} 
-        toggleSidebar={toggleSidebar}
-        mapInstance={mapInstance}
-      />
-      
-      {/* Map Container */}
+    <div className="relative h-screen flex">
       <div className="flex-1 relative">
-        <div 
-          ref={mapRef} 
-          className="absolute inset-0 bg-gray-100"
-        />
+        <div ref={mapRef} className="h-full w-full" />
+        
         {loading && <MapLoading />}
         
-        {/* Contribution Buttons */}
-        <div className="absolute bottom-6 right-6 z-10 flex flex-col gap-3">
-          <Button
-            variant="default"
-            size="lg"
-            onClick={() => openContributionDialog('point')}
-            className="rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center gap-2 bg-primary text-primary-foreground"
-          >
-            <MapPin className="h-5 w-5" />
-            <span className="font-medium">Add Point</span>
-          </Button>
-          <Button
-            variant="destructive"
-            size="lg"
-            onClick={() => openContributionDialog('issue')}
-            className="rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center gap-2"
-          >
-            <AlertTriangle className="h-5 w-5" />
-            <span className="font-medium">Report Issue</span>
-          </Button>
-        </div>
-      </div>
-      
-      {/* Contribution Dialog */}
-      {contributionDialog.location && (
-        <ContributionDialog
-          isOpen={contributionDialog.isOpen}
-          onClose={closeContributionDialog}
-          type={contributionDialog.type}
-          location={contributionDialog.location}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div 
-        className={`bg-white border-l border-gray-200 h-full transition-all duration-300 ease-in-out flex flex-col ${
-          isSidebarOpen ? 'w-full md:w-96' : 'w-0 overflow-hidden'
-        }`}
-      >
-        {currentRoute ? (
-          <DirectionsPanel
-            steps={currentRoute.steps}
-            totalDistance={currentRoute.totalDistance}
-            totalDuration={currentRoute.totalDuration}
-            onBack={handleBackFromDirections}
-          />
-        ) : (
-          <Sidebar 
-            isSidebarOpen={isSidebarOpen}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            startLocation={startLocation}
-            setStartLocation={setStartLocation}
-            endLocation={endLocation}
-            setEndLocation={setEndLocation}
-            preferences={preferences}
-            togglePreference={togglePreference}
-            handleFindRoute={handleFindRoute}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            handleSearchPlaces={handleSearchPlaces}
-            accessibilityPoints={accessibilityPoints}
-            accessibilityIssues={accessibilityIssues}
-            mapInstance={mapInstance}
-            onPointClick={handlePointClick}
-            onIssueClick={handleIssueClick}
-            onPointsUpdate={fetchAccessibilityData}
-            onIssuesUpdate={fetchAccessibilityData}
-          />
+        {mapLoaded && (
+          <>
+            <MapControls
+              isSidebarOpen={isSidebarOpen}
+              toggleSidebar={toggleSidebar}
+              mapInstance={mapInstance}
+              onAddPoint={() => openContributionDialog('point')}
+              onReportIssue={() => openContributionDialog('issue')}
+            />
+            
+            <ContributionDialog
+              isOpen={contributionDialog.isOpen}
+              onClose={closeContributionDialog}
+              onSuccess={fetchAccessibilityData}
+              type={contributionDialog.type}
+              location={contributionDialog.location}
+            />
+            
+            {currentRoute && (
+              <DirectionsPanel
+                steps={currentRoute.steps}
+                totalDistance={currentRoute.totalDistance}
+                totalDuration={currentRoute.totalDuration}
+                onBack={() => {
+                  setCurrentRoute(null);
+                  if (routePolyline) {
+                    routePolyline.setMap(null);
+                    setRoutePolyline(null);
+                  }
+                }}
+              />
+            )}
+          </>
         )}
       </div>
+
+      {/* Sidebar */}
+      <Sidebar
+        isSidebarOpen={isSidebarOpen}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        handleSearchPlaces={handleSearchPlaces}
+        startLocation={startLocation}
+        setStartLocation={setStartLocation}
+        endLocation={endLocation}
+        setEndLocation={setEndLocation}
+        preferences={preferences}
+        togglePreference={togglePreference}
+        handleFindRoute={calculateAndDisplayRoute}
+        accessibilityPoints={accessibilityPoints}
+        accessibilityIssues={accessibilityIssues}
+        mapInstance={mapInstance}
+        onPointClick={handlePointClick}
+        onIssueClick={handleIssueClick}
+        onPointsUpdate={fetchAccessibilityData}
+        onIssuesUpdate={fetchAccessibilityData}
+      />
     </div>
   );
 };

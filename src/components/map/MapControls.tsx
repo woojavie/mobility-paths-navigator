@@ -1,14 +1,22 @@
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Filter, Layers, Navigation } from 'lucide-react';
+import { ArrowRight, Filter, Layers, Navigation, MapPin, AlertTriangle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
 type MapControlsProps = {
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
   mapInstance: google.maps.Map | null;
+  onAddPoint: () => void;
+  onReportIssue: () => void;
 };
 
-const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance }: MapControlsProps) => {
+const MapControls = ({ 
+  isSidebarOpen, 
+  toggleSidebar, 
+  mapInstance,
+  onAddPoint,
+  onReportIssue 
+}: MapControlsProps) => {
   const handleCurrentLocation = async () => {
     if (!mapInstance) return;
 
@@ -73,42 +81,67 @@ const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance }: MapControlsP
   };
 
   return (
-    <div className="absolute top-20 right-4 z-10 flex flex-col space-y-2">
-      <Button 
-        variant="secondary" 
-        size="icon" 
-        className="rounded-full glass-morphism shadow-button"
-        onClick={toggleSidebar}
-        aria-label="Toggle sidebar"
-      >
-        {isSidebarOpen ? <ArrowRight className="h-5 w-5" /> : <ArrowRight className="h-5 w-5 rotate-180" />}
-      </Button>
-      <Button 
-        variant="secondary" 
-        size="icon" 
-        className="rounded-full glass-morphism shadow-button"
-        aria-label="Filter map"
-      >
-        <Filter className="h-5 w-5" />
-      </Button>
-      <Button 
-        variant="secondary" 
-        size="icon" 
-        className="rounded-full glass-morphism shadow-button"
-        aria-label="Change layers"
-      >
-        <Layers className="h-5 w-5" />
-      </Button>
-      <Button 
-        variant="secondary" 
-        size="icon" 
-        className="rounded-full glass-morphism shadow-button hover:bg-accessBlue hover:text-white transition-colors"
-        aria-label="My location"
-        onClick={handleCurrentLocation}
-      >
-        <Navigation className="h-5 w-5" />
-      </Button>
-    </div>
+    <>
+      {/* Map Controls */}
+      <div className="absolute top-4 right-4 z-10 flex flex-col space-y-2">
+        <Button 
+          variant="secondary" 
+          size="icon" 
+          className="rounded-full glass-morphism shadow-button"
+          onClick={toggleSidebar}
+          aria-label="Toggle sidebar"
+        >
+          {isSidebarOpen ? <ArrowRight className="h-5 w-5" /> : <ArrowRight className="h-5 w-5 rotate-180" />}
+        </Button>
+        <Button 
+          variant="secondary" 
+          size="icon" 
+          className="rounded-full glass-morphism shadow-button"
+          aria-label="Filter map"
+        >
+          <Filter className="h-5 w-5" />
+        </Button>
+        <Button 
+          variant="secondary" 
+          size="icon" 
+          className="rounded-full glass-morphism shadow-button"
+          aria-label="Change layers"
+        >
+          <Layers className="h-5 w-5" />
+        </Button>
+        <Button 
+          variant="secondary" 
+          size="icon" 
+          className="rounded-full glass-morphism shadow-button hover:bg-accessBlue hover:text-white transition-colors"
+          aria-label="My location"
+          onClick={handleCurrentLocation}
+        >
+          <Navigation className="h-5 w-5" />
+        </Button>
+      </div>
+
+      {/* Contribution Buttons */}
+      <div className="absolute bottom-6 right-6 z-10 flex flex-col gap-3">
+        <Button
+          variant="default"
+          size="lg"
+          onClick={onAddPoint}
+          className="rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center gap-2 bg-primary text-primary-foreground"
+        >
+          <MapPin className="h-5 w-5" />
+          <span className="font-medium">Add Point</span>
+        </Button>
+        <Button
+          variant="destructive"
+          size="lg"
+          onClick={onReportIssue}
+          className="rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center gap-2"
+        >
+          <AlertTriangle className="h-5 w-5" />
+          <span className="font-medium">Report Issue</span>
+        </Button>
+      </div>
+    </>
   );
 };
 

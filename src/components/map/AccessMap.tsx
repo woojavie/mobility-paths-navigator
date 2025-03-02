@@ -15,7 +15,7 @@ import MapControls from './MapControls';
 import MapLoading from './MapLoading';
 import Sidebar from './Sidebar';
 import { calculateRoute, RouteResult } from '@/services/routeService';
-import DirectionsPanel from './DirectionsPanel';
+import DirectionsDialog from './DirectionsDialog';
 import { ContributionDialog } from './ContributionDialog';
 import { Plus, MapPin, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -81,6 +81,7 @@ const AccessMap = ({
   });
   const [externalPoints, setExternalPoints] = useState<AccessibilityPoint[]>([]);
   const [isUpdatingMarkers, setIsUpdatingMarkers] = useState(false);
+  const [isDirectionsOpen, setIsDirectionsOpen] = useState(false);
 
   // Extract fetchAccessibilityData to be reusable
   const fetchAccessibilityData = async () => {
@@ -325,6 +326,7 @@ const AccessMap = ({
         newPolyline.setMap(mapInstance);
         setRoutePolyline(newPolyline);
         setCurrentRoute(route);
+        setIsDirectionsOpen(true);
 
         // Fit bounds to show the entire route
         const bounds = new google.maps.LatLngBounds();
@@ -549,17 +551,19 @@ const AccessMap = ({
             />
             
             {currentRoute && (
-              <DirectionsPanel
-                steps={currentRoute.steps}
-                totalDistance={currentRoute.totalDistance}
-                totalDuration={currentRoute.totalDuration}
-                onBack={() => {
+              <DirectionsDialog
+                isOpen={isDirectionsOpen}
+                onClose={() => {
+                  setIsDirectionsOpen(false);
                   setCurrentRoute(null);
                   if (routePolyline) {
                     routePolyline.setMap(null);
                     setRoutePolyline(null);
                   }
                 }}
+                steps={currentRoute.steps}
+                totalDistance={currentRoute.totalDistance}
+                totalDuration={currentRoute.totalDuration}
               />
             )}
           </>
@@ -580,7 +584,7 @@ const AccessMap = ({
         setEndLocation={setEndLocation}
         preferences={preferences}
         togglePreference={togglePreference}
-        handleFindRoute={calculateAndDisplayRoute}
+        handleFindRoute={handleFindRoute}
         accessibilityPoints={accessibilityPoints}
         accessibilityIssues={accessibilityIssues}
         mapInstance={mapInstance}

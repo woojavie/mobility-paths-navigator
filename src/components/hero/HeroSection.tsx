@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Search, ArrowRight, Accessibility, Route, Star } from 'lucide-react';
@@ -8,6 +7,12 @@ import { Input } from '@/components/ui/input';
 const HeroSection = () => {
   const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(false);
+  const [startLocation, setStartLocation] = useState('');
+  const [destination, setDestination] = useState('');
+  const [preferences, setPreferences] = useState({
+    wheelchairAccessible: false,
+    avoidStairs: false
+  });
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -17,8 +22,24 @@ const HeroSection = () => {
     return () => clearTimeout(timer);
   }, []);
   
-  const goToMap = () => {
-    navigate('/map');
+  const handleFindRoute = () => {
+    if (!startLocation || !destination) {
+      return;
+    }
+    
+    // Navigate to map page with route parameters
+    navigate('/map', {
+      state: {
+        startLocation,
+        destination,
+        preferences: {
+          wheelchairAccessible: preferences.wheelchairAccessible,
+          avoidStairs: preferences.avoidStairs,
+          elevatorRequired: false,
+          avoidConstruction: false
+        }
+      }
+    });
   };
   
   return (
@@ -41,7 +62,7 @@ const HeroSection = () => {
           <div className="flex flex-col sm:flex-row gap-4">
             <Button 
               size="lg" 
-              onClick={goToMap}
+              onClick={() => navigate('/map')}
               className="rounded-full shadow-button"
             >
               Explore Accessible Routes
@@ -85,6 +106,8 @@ const HeroSection = () => {
                 <Input 
                   placeholder="Current location"
                   className="pl-10 rounded-lg border border-gray-200"
+                  value={startLocation}
+                  onChange={(e) => setStartLocation(e.target.value)}
                 />
               </div>
               
@@ -93,21 +116,35 @@ const HeroSection = () => {
                 <Input 
                   placeholder="Where to?"
                   className="pl-10 rounded-lg border border-gray-200"
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
                 />
               </div>
               
               <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline" className="rounded-lg border border-gray-200" onClick={goToMap}>
+                <Button 
+                  variant={preferences.wheelchairAccessible ? "default" : "outline"} 
+                  className="rounded-lg border border-gray-200"
+                  onClick={() => setPreferences(prev => ({ ...prev, wheelchairAccessible: !prev.wheelchairAccessible }))}
+                >
                   <Accessibility className="h-4 w-4 mr-2" />
                   Wheelchair
                 </Button>
-                <Button variant="outline" className="rounded-lg border border-gray-200" onClick={goToMap}>
+                <Button 
+                  variant={preferences.avoidStairs ? "default" : "outline"}
+                  className="rounded-lg border border-gray-200"
+                  onClick={() => setPreferences(prev => ({ ...prev, avoidStairs: !prev.avoidStairs }))}
+                >
                   <Route className="h-4 w-4 mr-2" />
                   Avoid Stairs
                 </Button>
               </div>
               
-              <Button className="w-full rounded-lg" onClick={goToMap}>
+              <Button 
+                className="w-full rounded-lg" 
+                onClick={handleFindRoute}
+                disabled={!startLocation || !destination}
+              >
                 Find Route
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -116,15 +153,24 @@ const HeroSection = () => {
             <div className="mt-6 bg-gray-50 p-4 rounded-lg">
               <h4 className="font-medium mb-2">Popular Accessible Destinations</h4>
               <ul className="space-y-2 text-sm">
-                <li className="flex items-center hover:text-accessBlue cursor-pointer transition-colors">
+                <li 
+                  className="flex items-center hover:text-accessBlue cursor-pointer transition-colors"
+                  onClick={() => setDestination("Central Park (Accessible Entrance)")}
+                >
                   <MapPin className="h-4 w-4 mr-2 text-accessBlue" />
                   Central Park (Accessible Entrance)
                 </li>
-                <li className="flex items-center hover:text-accessBlue cursor-pointer transition-colors">
+                <li 
+                  className="flex items-center hover:text-accessBlue cursor-pointer transition-colors"
+                  onClick={() => setDestination("Metropolitan Museum of Art")}
+                >
                   <MapPin className="h-4 w-4 mr-2 text-accessBlue" />
                   Metropolitan Museum of Art
                 </li>
-                <li className="flex items-center hover:text-accessBlue cursor-pointer transition-colors">
+                <li 
+                  className="flex items-center hover:text-accessBlue cursor-pointer transition-colors"
+                  onClick={() => setDestination("Times Square Visitor Center")}
+                >
                   <MapPin className="h-4 w-4 mr-2 text-accessBlue" />
                   Times Square Visitor Center
                 </li>

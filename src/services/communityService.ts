@@ -114,17 +114,72 @@ export const fetchReplies = async (discussionId: string, sortOrder: 'newest' | '
 
 // Add a reply to a discussion
 export const createReply = async (reply: Omit<Reply, 'id' | 'created_at' | 'updated_at' | 'likes_count'>) => {
-  const { data, error } = await supabase
-    .from('discussion_replies')
-    .insert([reply])
-    .select();
-    
-  if (error) {
-    console.error('Error creating reply:', error);
-    throw error;
+  console.log('communityService: createReply called with', reply);
+  
+  if (!reply.discussion_id) {
+    console.error('Error creating reply: discussion_id is required');
+    throw new Error('Discussion ID is required');
   }
   
-  return data[0] as Reply;
+  if (!reply.user_id) {
+    console.error('Error creating reply: user_id is required');
+    throw new Error('User ID is required');
+  }
+  
+  if (!reply.content) {
+    console.error('Error creating reply: content is required');
+    throw new Error('Content is required');
+  }
+  
+  try {
+    // First try with all fields including parent_reply_id if provided
+    const { data, error } = await supabase
+      .from('discussion_replies')
+      .insert([reply])
+      .select();
+      
+    if (error) {
+      console.error('Error creating reply:', error);
+      
+      // If the error is about parent_reply_id column not existing, try again without it
+      if (error.message && error.message.includes('column "parent_reply_id" does not exist') && reply.parent_reply_id) {
+        console.log('parent_reply_id column does not exist, retrying without it');
+        
+        // Create a new object without parent_reply_id
+        const { parent_reply_id, ...replyWithoutParent } = reply;
+        
+        const retryResult = await supabase
+          .from('discussion_replies')
+          .insert([replyWithoutParent])
+          .select();
+          
+        if (retryResult.error) {
+          console.error('Error on retry without parent_reply_id:', retryResult.error);
+          throw retryResult.error;
+        }
+        
+        console.log('Reply created successfully without parent_reply_id:', retryResult.data);
+        return retryResult.data[0] as Reply;
+      }
+      
+      // Provide more specific error messages
+      if (error.code === '23503') { // Foreign key violation
+        console.error('Foreign key constraint failed. Discussion or parent reply may not exist.');
+        throw new Error('The discussion or parent reply you are responding to may have been deleted');
+      } else if (error.code === '23502') { // Not null violation
+        console.error('Not null constraint failed. Missing required field.');
+        throw new Error('Missing required field');
+      }
+      
+      throw error;
+    }
+    
+    console.log('Reply created successfully:', data);
+    return data[0] as Reply;
+  } catch (error) {
+    console.error('Exception in createReply:', error);
+    throw error;
+  }
 };
 
 // Helper function to validate like parameters

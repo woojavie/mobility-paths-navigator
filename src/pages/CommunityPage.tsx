@@ -12,7 +12,8 @@ import {
   Bell,
   Users,
   Plus,
-  X
+  X,
+  Trash
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,8 @@ import Footer from '@/components/layout/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { NewPostDialog } from '@/components/community/NewPostDialog';
 import { DiscussionDetail } from '@/components/community/DiscussionDetail';
+import { ReplyDialog } from '@/components/community/forms/ReplyDialog';
+import { DiscussionDialog } from '@/components/community/forms/DiscussionDialog';
 import { 
   fetchDiscussions, 
   fetchReviews, 
@@ -53,8 +56,12 @@ const CommunityPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedDiscussionId, setSelectedDiscussionId] = useState<string | null>(null);
+  const [isDiscussionDialogOpen, setIsDiscussionDialogOpen] = useState(false);
+  const [discussionDialogId, setDiscussionDialogId] = useState<string | null>(null);
   const [discussionLikes, setDiscussionLikes] = useState<Record<string, boolean>>({});
   const [isLikeLoading, setIsLikeLoading] = useState<Record<string, boolean>>({});
+  const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
+  const [replyDialogDiscussionId, setReplyDialogDiscussionId] = useState<string | null>(null);
   
   // Scroll to top on page load
   useEffect(() => {
@@ -265,49 +272,49 @@ const CommunityPage = () => {
       return;
     }
 
-    // Set loading state for this specific discussion
-    setIsLikeLoading(prev => ({ ...prev, [discussionId]: true }));
-    
     try {
-      const isCurrentlyLiked = discussionLikes[discussionId] || false;
+      setIsLikeLoading(prev => ({ ...prev, [discussionId]: true }));
       
-      if (isCurrentlyLiked) {
+      const isLiked = discussionLikes[discussionId] || false;
+      
+      if (isLiked) {
         await removeLike(user.id, discussionId);
-        
-        // Update local state
         setDiscussionLikes(prev => ({ ...prev, [discussionId]: false }));
-        setDiscussions(prev => 
-          prev.map(d => 
-            d.id === discussionId 
-              ? { ...d, likes_count: (d.likes_count || 0) - 1 } 
-              : d
-          )
-        );
+        setDiscussions(prev => prev.map(d =>
+          d.id === discussionId ? { ...d, likes_count: Math.max(0, (d.likes_count || 0) - 1) } : d
+        ));
+        
+        toast({
+          title: 'Like removed',
+          description: 'You have unliked this discussion.',
+        });
       } else {
         await addLike(user.id, discussionId);
-        
-        // Update local state
         setDiscussionLikes(prev => ({ ...prev, [discussionId]: true }));
-        setDiscussions(prev => 
-          prev.map(d => 
-            d.id === discussionId 
-              ? { ...d, likes_count: (d.likes_count || 0) + 1 } 
-              : d
-          )
-        );
+        setDiscussions(prev => prev.map(d =>
+          d.id === discussionId ? { ...d, likes_count: (d.likes_count || 0) + 1 } : d
+        ));
+        
+        toast({
+          title: 'Like added',
+          description: 'You have liked this discussion.',
+        });
       }
+      
+      console.log('Like toggled successfully. New state:', !isLiked);
     } catch (error) {
       console.error('Error toggling like:', error);
       
-      // Provide more specific error message based on the error
       let errorMessage = 'Failed to update like status. Please try again.';
       
       if (error instanceof Error) {
-        if (error.message.includes('Invalid parameters')) {
-          errorMessage = 'Invalid parameters for like operation. Please try again later.';
-        } else if (error.message.includes('duplicate key')) {
+        console.error('Error details:', error.message);
+        
+        if (error.message.includes('already liked')) {
           errorMessage = 'You have already liked this discussion.';
-        } else if (error.message.includes('violates foreign key constraint')) {
+        } else if (error.message.includes('not liked')) {
+          errorMessage = 'You have not liked this discussion.';
+        } else if (error.message.includes('foreign key constraint')) {
           errorMessage = 'The discussion may have been deleted.';
         }
       }
@@ -324,12 +331,123 @@ const CommunityPage = () => {
   
   // Handle clicking "Read More" on a discussion
   const handleReadMore = (discussionId: string) => {
-    setSelectedDiscussionId(discussionId);
+    console.log('Opening discussion dialog for:', discussionId);
+    setDiscussionDialogId(discussionId);
+    setIsDiscussionDialogOpen(true);
+  };
+  
+  // Handle clicking "Reply" on a discussion
+  const handleReply = (discussionId: string) => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'Please sign in to reply to discussions.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    console.log('Opening reply dialog for discussion:', discussionId);
+    
+    // Close the discussion dialog if it's open
+    if (isDiscussionDialogOpen) {
+      setIsDiscussionDialogOpen(false);
+    }
+    
+    // Open the reply dialog
+    setReplyDialogDiscussionId(discussionId);
+    setIsReplyDialogOpen(true);
+  };
+  
+  // Handle reply success
+  const handleReplySuccess = () => {
+    console.log('CommunityPage: handleReplySuccess called');
+    console.log('replyDialogDiscussionId:', replyDialogDiscussionId);
+    console.log('selectedDiscussionId:', selectedDiscussionId);
+    
+    // Close the dialog
+    setIsReplyDialogOpen(false);
+    
+    // Close the discussion dialog if it's open
+    if (isDiscussionDialogOpen) {
+      setIsDiscussionDialogOpen(false);
+    }
+    
+    // If we're not already viewing the discussion, navigate to it
+    if (!selectedDiscussionId) {
+      setSelectedDiscussionId(replyDialogDiscussionId);
+    }
+    
+    // Refresh the discussions list
+    loadData('discussions', true);
+    
+    toast({
+      title: 'Reply added',
+      description: 'Your reply has been added to the discussion.',
+    });
   };
   
   // Handle going back from discussion detail
   const handleBackFromDetail = () => {
     setSelectedDiscussionId(null);
+  };
+  
+  // Handle discussion dialog reply success
+  const handleDiscussionDialogReplySuccess = () => {
+    console.log('CommunityPage: handleDiscussionDialogReplySuccess called');
+    
+    // Close the reply dialog if it's open
+    if (isReplyDialogOpen) {
+      setIsReplyDialogOpen(false);
+    }
+    
+    // Refresh the discussions list
+    loadData('discussions', true);
+    
+    toast({
+      title: 'Reply added',
+      description: 'Your reply has been added to the discussion.',
+    });
+  };
+  
+  // Handle deleting a discussion
+  const handleDeleteDiscussion = async (discussionId: string) => {
+    if (!user) return;
+    
+    if (confirm("Are you sure you want to delete this discussion? This action cannot be undone.")) {
+      try {
+        const { error } = await supabase
+          .from('discussions')
+          .delete()
+          .eq('id', discussionId)
+          .eq('user_id', user.id);
+          
+        if (error) {
+          console.error('Error deleting discussion:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to delete discussion. Please try again.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        // Remove the deleted discussion from the state
+        setDiscussions(prev => prev.filter(d => d.id !== discussionId));
+        
+        toast({
+          title: 'Discussion deleted',
+          description: 'Your discussion has been deleted successfully.',
+        });
+      } catch (error) {
+        console.error('Error deleting discussion:', error);
+        toast({
+          title: 'Error',
+          description: 'An unexpected error occurred. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    }
   };
   
   return (
@@ -481,32 +599,56 @@ const CommunityPage = () => {
                           )}
                         </div>
                         <p className="text-gray-700 mb-4">{truncateText(discussion.content, 250)}</p>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mt-4">
                           <div className="flex items-center space-x-4">
-                            <Button
-                              variant="ghost"
-                              size="sm"
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
                               className={`flex items-center ${discussionLikes[discussion.id] ? 'text-primary' : 'text-gray-500'}`}
                               onClick={() => handleLikeToggle(discussion.id)}
                               disabled={isLikeLoading[discussion.id] || !user}
                             >
-                              <ThumbsUp 
-                                className={`h-4 w-4 mr-1 ${discussionLikes[discussion.id] ? 'fill-primary' : ''}`} 
-                              />
-                              <span>{discussion.likes_count || 0}</span>
+                              {isLikeLoading[discussion.id] ? (
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              ) : (
+                                <ThumbsUp className={`h-4 w-4 mr-1 ${discussionLikes[discussion.id] ? 'fill-primary' : ''}`} />
+                              )}
+                              <span>{discussion.likes_count || 0} likes</span>
                             </Button>
                             <div className="flex items-center text-gray-500">
                               <MessageSquare className="h-4 w-4 mr-1" />
                               <span>{discussion.replies_count || 0} replies</span>
                             </div>
+                            {user && discussion.user_id === user.id && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-red-500 hover:text-red-700"
+                                onClick={() => handleDeleteDiscussion(discussion.id)}
+                              >
+                                <Trash className="h-4 w-4 mr-1" />
+                                Delete
+                              </Button>
+                            )}
                           </div>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleReadMore(discussion.id)}
-                          >
-                            Read More
-                          </Button>
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleReadMore(discussion.id)}
+                            >
+                              View Discussion
+                            </Button>
+                            <Button 
+                              variant="default" 
+                              size="default"
+                              className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                              onClick={() => handleReply(discussion.id)}
+                            >
+                              <MessageSquare className="h-4 w-4 mr-2" />
+                              Reply
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -609,6 +751,26 @@ const CommunityPage = () => {
         <DiscussionDetail 
           discussionId={selectedDiscussionId} 
           onBack={handleBackFromDetail} 
+        />
+      )}
+      
+      {replyDialogDiscussionId && isReplyDialogOpen && (
+        <ReplyDialog
+          isOpen={true}
+          onClose={() => setIsReplyDialogOpen(false)}
+          discussionId={replyDialogDiscussionId}
+          onSuccess={handleReplySuccess}
+        />
+      )}
+      
+      {/* Discussion Dialog */}
+      {discussionDialogId && (
+        <DiscussionDialog
+          isOpen={isDiscussionDialogOpen}
+          onClose={() => setIsDiscussionDialogOpen(false)}
+          discussionId={discussionDialogId}
+          onReplySuccess={handleDiscussionDialogReplySuccess}
+          onDelete={handleDeleteDiscussion}
         />
       )}
     </Layout>

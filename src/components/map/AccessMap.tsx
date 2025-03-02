@@ -28,7 +28,17 @@ type Coordinates = {
   lng: number;
 };
 
-const AccessMap = () => {
+interface AccessMapProps {
+  initialStartLocation?: string;
+  initialDestination?: string;
+  initialPreferences?: PreferencesType;
+}
+
+const AccessMap = ({ 
+  initialStartLocation, 
+  initialDestination,
+  initialPreferences 
+}: AccessMapProps) => {
   const { mapRef, mapInstance, infoWindow, mapLoaded, loading } = useGoogleMaps();
   const [activeTab, setActiveTab] = useState("route");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -36,9 +46,9 @@ const AccessMap = () => {
   const [accessibilityPoints, setAccessibilityPoints] = useState<AccessibilityPoint[]>([]);
   const [accessibilityIssues, setAccessibilityIssues] = useState<AccessibilityIssue[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [startLocation, setStartLocation] = useState('Current location');
-  const [endLocation, setEndLocation] = useState('');
-  const [preferences, setPreferences] = useState<PreferencesType>({
+  const [startLocation, setStartLocation] = useState(initialStartLocation || 'Current location');
+  const [endLocation, setEndLocation] = useState(initialDestination || '');
+  const [preferences, setPreferences] = useState<PreferencesType>(initialPreferences || {
     wheelchairAccessible: false,
     avoidStairs: false,
     elevatorRequired: false,
@@ -453,8 +463,23 @@ const AccessMap = () => {
     }
   }, [mapInstance, infoWindow]);
 
+  // Calculate route when initial parameters are provided
+  useEffect(() => {
+    if (mapLoaded && initialStartLocation && initialDestination) {
+      calculateAndDisplayRoute();
+    }
+  }, [mapLoaded, initialStartLocation, initialDestination]);
+
   return (
-    <div className="relative h-screen flex">
+    <div className="h-screen w-full flex relative overflow-hidden">
+      {/* Map Controls */}
+      <MapControls 
+        isSidebarOpen={isSidebarOpen} 
+        toggleSidebar={toggleSidebar}
+        mapInstance={mapInstance}
+      />
+      
+      {/* Map Container */}
       <div className="flex-1 relative">
         <div ref={mapRef} className="h-full w-full" />
         

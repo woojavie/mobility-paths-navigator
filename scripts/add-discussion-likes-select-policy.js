@@ -32,23 +32,44 @@ async function main() {
     
     // Test if we can access the discussion_likes table
     console.log('Testing access to discussion_likes table...');
-    const { data, error } = await supabase
+    const { data: testData, error: testError } = await supabase
       .from('discussion_likes')
       .select('*')
       .limit(1);
     
-    if (error) {
-      if (error.code === 'PGRST301') {
-        console.log('Confirmed: Permission issue detected. Please run the following SQL in your Supabase SQL editor:');
+    if (testError && testError.code === 'PGRST301') {
+      console.log('Permission issue detected. Attempting to add SELECT policy...');
+      
+      // Execute SQL to add the policy
+      const { data, error } = await supabase.rpc('exec_sql', {
+        query: `CREATE POLICY "Anyone can read discussion likes" ON public.discussion_likes FOR SELECT USING (true);`
+      });
+      
+      if (error) {
+        console.error('❌ Error adding policy:', error.message);
+        console.log('\nPlease run the following SQL in your Supabase SQL editor:');
         console.log('\n-------------------------------------------');
         console.log('CREATE POLICY "Anyone can read discussion likes" ON public.discussion_likes FOR SELECT USING (true);');
         console.log('-------------------------------------------\n');
-        console.log('After running this SQL, the like/unlike functionality should work correctly.');
       } else {
-        console.error('Unexpected error:', error.message);
+        console.log('✅ SELECT policy added successfully!');
+        
+        // Verify the fix worked
+        const { error: verifyError } = await supabase
+          .from('discussion_likes')
+          .select('*')
+          .limit(1);
+        
+        if (verifyError) {
+          console.log('❌ Policy was added but there may still be issues. Please check your Supabase settings.');
+        } else {
+          console.log('✅ Verified: The discussion_likes table is now accessible.');
+        }
       }
+    } else if (testError) {
+      console.error('Unexpected error:', testError.message);
     } else {
-      console.log('✅ No permission issues detected. The discussion_likes table is accessible.');
+      console.log('✅ No permission issues detected. The discussion_likes table is already accessible.');
     }
     
   } catch (error) {

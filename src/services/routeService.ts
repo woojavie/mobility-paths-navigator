@@ -12,6 +12,16 @@ interface RoutePreferences {
   avoidConstruction: boolean;
 }
 
+interface RouteLeg {
+  steps?: Array<{
+    navigationInstruction?: {
+      instructions: string;
+    };
+  }>;
+  distanceMeters: number;
+  duration: string;
+}
+
 export interface RouteStep {
   instructions: string;
   distance: string;
@@ -25,91 +35,7 @@ export interface RouteResult {
   path: LatLng[];
 }
 
-// Calculate distance between two points using the Haversine formula
-const calculateDistance = (point1: LatLng, point2: LatLng): number => {
-  const R = 6371e3; // Earth's radius in meters
-  const φ1 = (point1.lat * Math.PI) / 180;
-  const φ2 = (point2.lat * Math.PI) / 180;
-  const Δφ = ((point2.lat - point1.lat) * Math.PI) / 180;
-  const Δλ = ((point2.lng - point1.lng) * Math.PI) / 180;
-
-  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) *
-    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c; // Distance in meters
-};
-
-// export const calculateRoute = async (
-//   origin: LatLng | string,
-//   destination: LatLng | string,
-//   preferences: RoutePreferences
-// ): Promise<RouteResult | null> => {
-//   try {
-//     if (!window.google) {
-//       throw new Error('Google Maps not loaded');
-//     }
-
-//     console.log('Starting route calculation...');
-//     console.log('Origin:', origin);
-//     console.log('Destination:', destination);
-
-//     // Convert string addresses to coordinates if needed
-//     const originCoords = typeof origin === 'string' 
-//       ? await geocodeAddress(origin)
-//       : origin;
-    
-//     const destinationCoords = typeof destination === 'string'
-//       ? await geocodeAddress(destination)
-//       : destination;
-
-//     if (!originCoords || !destinationCoords) {
-//       throw new Error('Could not find location coordinates');
-//     }
-
-//     console.log('Coordinates resolved:', { originCoords, destinationCoords });
-
-//     // Calculate straight-line distance
-//     const distanceInMeters = calculateDistance(originCoords, destinationCoords);
-    
-//     // Assume average walking speed of 1.4 meters per second (5 km/h)
-//     const durationInSeconds = Math.ceil(distanceInMeters / 1.4);
-
-//     // Create a simple path with just the start and end points
-//     const path = [originCoords, destinationCoords];
-
-//     // Create a single step for the route
-//     const steps: RouteStep[] = [{
-//       instructions: `Walk to destination`,
-//       distance: formatDistance(distanceInMeters),
-//       duration: formatDuration(durationInSeconds.toString())
-//     }];
-
-//     // Add accessibility warning if needed
-//     if (preferences.wheelchairAccessible || preferences.avoidStairs) {
-//       steps[0].instructions = '⚠️ Note: This is a direct route and may not account for accessibility barriers. Please verify the path is accessible.';
-//     }
-
-//     return {
-//       steps,
-//       totalDistance: formatDistance(distanceInMeters),
-//       totalDuration: formatDuration(durationInSeconds.toString()),
-//       path
-//     };
-
-//   } catch (error) {
-//     console.error('Error calculating route:', error);
-    
-//     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-//     toast({
-//       title: "Error calculating route",
-//       description: errorMessage,
-//       variant: "destructive"
-//     });
-//     return null;
-//   }
-// };
+const ROUTES_API_ENDPOINT = 'https://routes.googleapis.com/directions/v2:computeRoutes';
 
 export const calculateRoute = async (
   origin: LatLng | string,
@@ -117,13 +43,9 @@ export const calculateRoute = async (
   preferences: RoutePreferences
 ): Promise<RouteResult | null> => {
   try {
-    if (!window.google || !google.maps.DirectionsService) {
-      throw new Error('Google Maps API not loaded');
+    if (!window.google) {
+      throw new Error('Google Maps not loaded');
     }
-
-    console.log('Starting route calculation...');
-    console.log('Origin:', origin);
-    console.log('Destination:', destination);
 
     // Convert string addresses to coordinates if needed
     const originCoords = typeof origin === 'string' 
@@ -138,56 +60,100 @@ export const calculateRoute = async (
       throw new Error('Could not find location coordinates');
     }
 
-    console.log('Coordinates resolved:', { originCoords, destinationCoords });
-
-    // Initialize Google Maps Directions Service
+    // Use DirectionsService instead of Routes API
     const directionsService = new google.maps.DirectionsService();
-
+    
     const request: google.maps.DirectionsRequest = {
       origin: originCoords,
       destination: destinationCoords,
       travelMode: google.maps.TravelMode.WALKING,
+      provideRouteAlternatives: false
     };
 
-    const response = await new Promise<google.maps.DirectionsResult>((resolve, reject) => {
-      directionsService.route(request, (result, status) => {
-        if (status === google.maps.DirectionsStatus.OK && result) {
-          resolve(result);
-        } else {
-          reject(new Error('Directions request failed with status: ' + status));
-        }
+    // Add accessibility preferences
+    if (preferences.wheelchairAccessible) {
+      request.optimizeWaypoints = true;
+    }
+
+    try {
+      console.log('Sending directions request:', request);
+      const response = await new Promise<google.maps.DirectionsResult>((resolve, reject) => {
+        directionsService.route(request, (result, status) => {
+          console.log('DirectionsService response:', { status, result });
+          if (status === google.maps.DirectionsStatus.OK && result) {
+            resolve(result);
+          } else if (status === google.maps.DirectionsStatus.ZERO_RESULTS) {
+            reject(new Error('No route found between these locations'));
+          } else if (status === google.maps.DirectionsStatus.OVER_QUERY_LIMIT) {
+            reject(new Error('Too many requests. Please try again later'));
+          } else if (status === google.maps.DirectionsStatus.REQUEST_DENIED) {
+            reject(new Error('Request denied. Please check if the Directions API is enabled in your Google Cloud Console'));
+          } else {
+            reject(new Error(`Failed to calculate route: ${status}`));
+          }
+        });
       });
-    });
 
-    // Extract steps and path from response
-    const route = response.routes[0].legs[0];
-    const steps: RouteStep[] = route.steps.map(step => ({
-      instructions: step.instructions,
-      distance: step.distance.text,
-      duration: step.duration.text,
-    }));
+      const route = response.routes[0];
+      const leg = route.legs[0];
 
-    const path: LatLng[] = route.steps.flatMap(step => step.path.map(p => ({ lat: p.lat(), lng: p.lng() })));
+      if (!leg) {
+        throw new Error('No route found');
+      }
 
-    return {
-      steps,
-      totalDistance: route.distance.text,
-      totalDuration: route.duration.text,
-      path,
-    };
+      // Convert the route steps into our format
+      const steps: RouteStep[] = leg.steps.map(step => ({
+        instructions: step.instructions,
+        distance: step.distance.text,
+        duration: step.duration.text
+      }));
+
+      // Add accessibility warning if needed
+      if (preferences.wheelchairAccessible) {
+        steps.unshift({
+          instructions: '⚠️ Please verify that this route is wheelchair accessible. Some obstacles may not be detected.',
+          distance: '',
+          duration: ''
+        });
+      }
+
+      // Extract path coordinates
+      const path: LatLng[] = leg.steps.flatMap(step => 
+        step.path.map(point => ({
+          lat: point.lat(),
+          lng: point.lng()
+        }))
+      );
+
+      return {
+        steps,
+        totalDistance: leg.distance.text,
+        totalDuration: leg.duration.text,
+        path
+      };
+
+    } catch (error) {
+      console.error('Error calculating route:', error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      toast({
+        title: "Error calculating route",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      return null;
+    }
 
   } catch (error) {
     console.error('Error calculating route:', error);
-    
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     toast({
       title: "Error calculating route",
-      description: error instanceof Error ? error.message : "Unknown error",
+      description: errorMessage,
       variant: "destructive"
     });
     return null;
   }
 };
-
 
 const geocodeAddress = async (address: string): Promise<LatLng | null> => {
   try {

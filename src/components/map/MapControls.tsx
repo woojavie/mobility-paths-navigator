@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Navigation } from 'lucide-react';
+import { ArrowRight, Filter, Layers, Navigation, MapPin, AlertTriangle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { useState } from 'react';
 
@@ -7,12 +7,21 @@ type MapControlsProps = {
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
   mapInstance: google.maps.Map | null;
+  onAddPoint: () => void;
+  onReportIssue: () => void;
   setStartLocation?: (location: string) => void;
 };
 
-const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance, setStartLocation }: MapControlsProps) => {
-  const [currentLocationMarker, setCurrentLocationMarker] = useState<google.maps.Marker | null>(null);
+const MapControls = ({ 
+  isSidebarOpen, 
+  toggleSidebar, 
+  mapInstance, 
+  onAddPoint,
+  onReportIssue,
+  setStartLocation 
+}: MapControlsProps) => {
   const [isLocating, setIsLocating] = useState(false);
+  const [currentLocationMarker, setCurrentLocationMarker] = useState<google.maps.Marker | null>(null);
 
   const handleCurrentLocation = async () => {
     if (!mapInstance) return;
@@ -48,12 +57,14 @@ const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance, setStartLocati
       setCurrentLocationMarker(marker);
 
       // Reverse geocode the coordinates to get the address
-      const geocoder = new google.maps.Geocoder();
-      const results = await geocoder.geocode({ location: position });
-      
-      if (results.results[0] && setStartLocation) {
-        const address = results.results[0].formatted_address;
-        setStartLocation(address);
+      if (setStartLocation) {
+        const geocoder = new google.maps.Geocoder();
+        const results = await geocoder.geocode({ location: position });
+        
+        if (results.results[0]) {
+          const address = results.results[0].formatted_address;
+          setStartLocation(address);
+        }
       }
 
       toast({
@@ -128,6 +139,24 @@ const MapControls = ({ isSidebarOpen, toggleSidebar, mapInstance, setStartLocati
         aria-label="Toggle sidebar"
       >
         {isSidebarOpen ? <ArrowRight className="h-5 w-5" /> : <ArrowRight className="h-5 w-5 rotate-180" />}
+      </Button>
+      <Button 
+        variant="secondary" 
+        size="icon" 
+        className="rounded-full glass-morphism shadow-button"
+        onClick={onAddPoint}
+        aria-label="Add accessibility point"
+      >
+        <MapPin className="h-5 w-5" />
+      </Button>
+      <Button 
+        variant="secondary" 
+        size="icon" 
+        className="rounded-full glass-morphism shadow-button"
+        onClick={onReportIssue}
+        aria-label="Report accessibility issue"
+      >
+        <AlertTriangle className="h-5 w-5" />
       </Button>
       <Button 
         variant="secondary" 

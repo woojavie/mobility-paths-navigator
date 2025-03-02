@@ -85,7 +85,7 @@ export default function CommunityTab({
       return;
     }
 
-    if (point.user_id === user.id) {
+    if (point.author_id === user.id) {
       toast({
         title: "Cannot verify own point",
         description: "You cannot verify your own accessibility point.",
@@ -97,7 +97,10 @@ export default function CommunityTab({
     try {
       const { error } = await supabase
         .from('accessibility_points')
-        .update({ verified: true })
+        .update({ 
+          verified: true,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', point.id);
       
       if (error) throw error;
@@ -126,7 +129,7 @@ export default function CommunityTab({
       return;
     }
 
-    if (issue.user_id === user.id) {
+    if (issue.author_id === user.id) {
       toast({
         title: "Cannot verify own issue",
         description: "You cannot verify your own reported issue.",
@@ -138,7 +141,10 @@ export default function CommunityTab({
     try {
       const { error } = await supabase
         .from('accessibility_issues')
-        .update({ verified: true })
+        .update({ 
+          verified: true,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', issue.id);
       
       if (error) throw error;
@@ -207,7 +213,7 @@ export default function CommunityTab({
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                      {user && !point.verified && user.id !== point.user_id && (
+                      {user && !point.verified && point.author_id !== user.id && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -267,7 +273,7 @@ export default function CommunityTab({
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                      {user && !issue.verified && user.id !== issue.user_id && (
+                      {user && !issue.verified && issue.author_id !== user.id && (
                         <Button
                           variant="outline"
                           size="sm"

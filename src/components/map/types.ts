@@ -15,11 +15,11 @@ export type AccessibilityPoint = {
   latitude: number;
   longitude: number;
   is_operational: boolean;
-  verified: boolean;
-  upvotes: number;
-  created_at: string;
-  updated_at: string;
-  user_id: string;
+  verified: boolean | null;
+  upvotes: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+  author_id: string;
 };
 
 export type AccessibilityIssue = {
@@ -29,13 +29,13 @@ export type AccessibilityIssue = {
   description: string | null;
   latitude: number;
   longitude: number;
-  start_date: string;
+  start_date: string | null;
   end_date: string | null;
-  verified: boolean;
-  upvotes: number;
-  created_at: string;
-  updated_at: string;
-  user_id: string;
+  verified: boolean | null;
+  upvotes: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+  author_id: string;
 };
 
 export type PreferencesType = {
@@ -44,3 +44,57 @@ export type PreferencesType = {
   elevatorRequired: boolean;
   avoidConstruction: boolean;
 };
+
+// Props types for components
+export interface MapControlsProps {
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
+  mapInstance: google.maps.Map | null;
+  onAddPoint: () => void;
+  onReportIssue: () => void;
+}
+
+export interface DirectionsPanelProps {
+  steps: {
+    instructions: string;
+    distance: string;
+    duration: string;
+  }[];
+  totalDistance: string;
+  totalDuration: string;
+  onBack?: () => void;
+}
+
+export interface SidebarProps {
+  isSidebarOpen: boolean;
+  activeTab: string;
+  setActiveTab: React.Dispatch<React.SetStateAction<string>>;
+  startLocation: string;
+  setStartLocation: React.Dispatch<React.SetStateAction<string>>;
+  endLocation: string;
+  setEndLocation: React.Dispatch<React.SetStateAction<string>>;
+  preferences: PreferencesType;
+  togglePreference: (preference: keyof PreferencesType) => void;
+  handleFindRoute: () => void;
+  searchQuery: string;
+  setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
+  handleSearchPlaces: () => void;
+  accessibilityPoints: AccessibilityPoint[];
+  accessibilityIssues: AccessibilityIssue[];
+  mapInstance: GoogleMapType | null;
+  onPointClick?: (point: AccessibilityPoint) => void;
+  onIssueClick?: (issue: AccessibilityIssue) => void;
+  onPointsUpdate?: () => void;
+  onIssuesUpdate?: () => void;
+}
+
+export interface RouteResult {
+  path: google.maps.LatLng[];
+  steps: {
+    instructions: string;
+    distance: string;
+    duration: string;
+  }[];
+  totalDistance: string;
+  totalDuration: string;
+}

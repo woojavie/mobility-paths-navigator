@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MessageSquare, ThumbsUp, User, ArrowLeft, Loader2 } from 'lucide-react';
-import { ReplyForm } from './forms/ReplyForm';
+import { ReplyDialog } from './forms/ReplyDialog';
 import { 
   Discussion, 
   Reply, 
@@ -32,7 +32,11 @@ export function DiscussionDetail({ discussionId, onBack }: DiscussionDetailProps
   const [isLikeLoading, setIsLikeLoading] = useState(false);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [replyLikes, setReplyLikes] = useState<Record<string, boolean>>({});
-  const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
+  const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
+  const [replyDialogProps, setReplyDialogProps] = useState<{
+    replyToId?: string;
+    replyToAuthor?: string;
+  }>({});
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -163,6 +167,7 @@ export function DiscussionDetail({ discussionId, onBack }: DiscussionDetailProps
   };
 
   const handleReplySuccess = () => {
+    console.log('DiscussionDetail: handleReplySuccess called');
     loadDiscussion();
     toast({
       title: 'Reply added',
@@ -236,7 +241,7 @@ export function DiscussionDetail({ discussionId, onBack }: DiscussionDetailProps
     }
   };
 
-  const handleReplyToReply = (replyId: string) => {
+  const handleReplyToReply = (replyId: string, authorName: string) => {
     if (!user) {
       toast({
         title: 'Authentication required',
@@ -246,16 +251,27 @@ export function DiscussionDetail({ discussionId, onBack }: DiscussionDetailProps
       return;
     }
     
-    console.log('Setting active reply ID:', replyId, 'Previous active reply ID:', activeReplyId);
-    setActiveReplyId(activeReplyId === replyId ? null : replyId);
-    
-    // Add a toast notification to confirm the action
-    toast({
-      title: activeReplyId === replyId ? 'Reply form closed' : 'Reply form opened',
-      description: activeReplyId === replyId 
-        ? 'The reply form has been closed.' 
-        : `You can now reply to this comment.`,
+    console.log('Opening reply dialog for reply:', replyId, 'by author:', authorName);
+    setReplyDialogProps({
+      replyToId: replyId,
+      replyToAuthor: authorName
     });
+    setIsReplyDialogOpen(true);
+  };
+
+  const handleReplyToDiscussion = () => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'Please sign in to reply to this discussion.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    console.log('Opening reply dialog for discussion:', discussionId);
+    setReplyDialogProps({});
+    setIsReplyDialogOpen(true);
   };
 
   if (isLoading) {
@@ -306,7 +322,7 @@ export function DiscussionDetail({ discussionId, onBack }: DiscussionDetailProps
         {user && (
           <div className="mb-4 mt-6 border-t pt-4 border-gray-100">
             <Button 
-              onClick={() => window.location.href = `#reply-form-${discussionId}`}
+              onClick={handleReplyToDiscussion}
               className="bg-blue-600 hover:bg-blue-700 text-white text-lg py-6 px-8 w-full md:w-auto"
               size="lg"
             >
@@ -352,16 +368,11 @@ export function DiscussionDetail({ discussionId, onBack }: DiscussionDetailProps
         </div>
         
         {user ? (
-          <Card className="p-6 mb-6 border-4 border-blue-500 bg-blue-50" id={`reply-form-${discussionId}`}>
-            <h4 className="font-bold mb-3 text-xl flex items-center text-blue-700">
-              <MessageSquare className="h-6 w-6 mr-2 text-blue-700" />
-              Add your reply to this discussion
+          <Card className="p-6 mb-6">
+            <h4 className="font-bold mb-3 text-xl flex items-center text-gray-700">
+              <MessageSquare className="h-6 w-6 mr-2 text-gray-700" />
+              Replies to this discussion
             </h4>
-            <ReplyForm 
-              discussionId={discussionId} 
-              onSuccess={handleReplySuccess} 
-              key={`main-reply-form-${discussionId}`}
-            />
           </Card>
         ) : (
           <Card className="p-6 mb-6 text-center border-2 border-blue-300 bg-blue-50">
@@ -411,31 +422,13 @@ export function DiscussionDetail({ discussionId, onBack }: DiscussionDetailProps
                         variant="default" 
                         size="default" 
                         className="flex items-center bg-blue-600 hover:bg-blue-700 text-white"
-                        onClick={() => handleReplyToReply(reply.id)}
+                        onClick={() => handleReplyToReply(reply.id, reply.author)}
                         disabled={!user}
                       >
                         <MessageSquare className="h-4 w-4 mr-2" />
                         <span>Reply to this comment</span>
                       </Button>
                     </div>
-                    
-                    {activeReplyId === reply.id && user && (
-                      <div className="mt-4 pl-4 border-l-4 border-blue-500 bg-blue-50 p-4 rounded-md">
-                        <h5 className="text-md font-bold mb-3 flex items-center text-blue-700">
-                          <MessageSquare className="h-5 w-5 mr-2 text-blue-700" />
-                          Reply to {reply.author}
-                        </h5>
-                        <ReplyForm 
-                          discussionId={discussionId} 
-                          replyToId={reply.id}
-                          key={`reply-form-${reply.id}`}
-                          onSuccess={() => {
-                            setActiveReplyId(null);
-                            handleReplySuccess();
-                          }} 
-                        />
-                      </div>
-                    )}
                   </Card>
                   
                   {/* Nested replies */}
@@ -469,31 +462,13 @@ export function DiscussionDetail({ discussionId, onBack }: DiscussionDetailProps
                             variant="default" 
                             size="default" 
                             className="flex items-center bg-blue-600 hover:bg-blue-700 text-white"
-                            onClick={() => handleReplyToReply(nestedReply.id)}
+                            onClick={() => handleReplyToReply(nestedReply.id, nestedReply.author)}
                             disabled={!user}
                           >
                             <MessageSquare className="h-4 w-4 mr-2" />
                             <span>Reply to this comment</span>
                           </Button>
                         </div>
-                        
-                        {activeReplyId === nestedReply.id && user && (
-                          <div className="mt-4 pl-4 border-l-4 border-blue-500 bg-blue-50 p-4 rounded-md">
-                            <h5 className="text-md font-bold mb-3 flex items-center text-blue-700">
-                              <MessageSquare className="h-5 w-5 mr-2 text-blue-700" />
-                              Reply to {nestedReply.author}
-                            </h5>
-                            <ReplyForm 
-                              discussionId={discussionId} 
-                              replyToId={nestedReply.id}
-                              key={`reply-form-${nestedReply.id}`}
-                              onSuccess={() => {
-                                setActiveReplyId(null);
-                                handleReplySuccess();
-                              }} 
-                            />
-                          </div>
-                        )}
                       </Card>
                     ))}
                 </div>
@@ -502,19 +477,15 @@ export function DiscussionDetail({ discussionId, onBack }: DiscussionDetailProps
         )}
       </div>
       
-      {/* Fixed floating reply button */}
-      {user && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <Button 
-            onClick={() => window.location.href = `#reply-form-${discussionId}`}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg p-4 flex items-center justify-center"
-            size="lg"
-          >
-            <MessageSquare className="h-6 w-6 mr-2" />
-            <span className="font-bold">Reply</span>
-          </Button>
-        </div>
-      )}
+      {/* Reply Dialog */}
+      <ReplyDialog
+        isOpen={isReplyDialogOpen}
+        onClose={() => setIsReplyDialogOpen(false)}
+        discussionId={discussionId}
+        replyToId={replyDialogProps.replyToId}
+        replyToAuthor={replyDialogProps.replyToAuthor}
+        onSuccess={handleReplySuccess}
+      />
     </div>
   );
 } 

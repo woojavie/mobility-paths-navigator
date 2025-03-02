@@ -1,4 +1,3 @@
-
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,7 @@ const CallToAction = () => {
         <div className="text-center max-w-3xl mx-auto">
           <div className="inline-flex items-center px-3 py-1 rounded-full bg-white/20 text-white text-sm font-medium backdrop-blur-sm mb-6">
             <MapPin className="h-4 w-4 mr-2" />
-            <span>Join AccessPath today</span>
+            <span>Join PathAble today</span>
           </div>
           
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
@@ -26,8 +25,8 @@ const CallToAction = () => {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
-              size="lg" 
               variant="secondary"
+              size="lg" 
               onClick={() => navigate('/map')}
               className="rounded-full shadow-button"
             >
@@ -36,9 +35,9 @@ const CallToAction = () => {
             </Button>
             
             <Button 
-              variant="outline" 
+              variant="default"
               size="lg"
-              className="rounded-full text-white border-white/30 hover:bg-white/10"
+              className="rounded-full bg-white text-accessBlue hover:bg-white/90 shadow-button"
               onClick={() => navigate('/contribute')}
             >
               Join the Community

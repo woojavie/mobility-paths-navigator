@@ -57,7 +57,7 @@ const Header = () => {
               <MapPin className="h-5 w-5 text-white" />
             </div>
             <span className="text-xl font-bold tracking-tight">
-              AccessPath
+              PathAble
             </span>
           </Link>
 

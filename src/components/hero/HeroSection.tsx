@@ -56,7 +56,7 @@ const HeroSection = () => {
           </h1>
           
           <p className="text-xl text-gray-600 max-w-lg">
-            AccessPath helps people with mobility challenges find and navigate accessible routes with detailed accessibility information.
+            PathAble helps people with mobility challenges find and navigate accessible routes with detailed accessibility information.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4">

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Mobility Paths Navigator</string>
-    <string name="title_activity_main">Mobility Paths Navigator</string>
-    <string name="package_name">app.mobility.paths.navigator</string>
-    <string name="custom_url_scheme">app.mobility.paths.navigator</string>
+    <string name="app_name">PathAble</string>
+    <string name="title_activity_main">PathAble</string>
+    <string name="package_name">app.pathable.navigator</string>
+    <string name="custom_url_scheme">app.pathable.navigator</string>
 </resources>

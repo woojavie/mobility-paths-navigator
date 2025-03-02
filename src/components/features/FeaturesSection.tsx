@@ -1,4 +1,3 @@
-
 import { 
   Map, 
   Users, 
@@ -59,7 +58,7 @@ const FeaturesSection = () => {
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Features designed for accessibility</h2>
           <p className="text-xl text-gray-600">
-            AccessPath combines detailed mapping with community insights to create the most comprehensive
+            PathAble combines detailed mapping with community insights to create the most comprehensive
             accessibility navigation experience.
           </p>
         </div>

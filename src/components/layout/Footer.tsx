@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom';
 import { 
   MapPin, Heart, Instagram, Twitter, Facebook, Linkedin, Github 
@@ -15,7 +14,7 @@ const Footer = () => {
                 <MapPin className="h-5 w-5 text-white" />
               </div>
               <span className="text-xl font-bold tracking-tight">
-                AccessPath
+                PathAble
               </span>
             </Link>
             <p className="text-sm text-gray-600 max-w-xs">
@@ -146,7 +145,7 @@ const Footer = () => {
         
         <div className="border-t border-gray-100 mt-10 pt-8 flex flex-col md:flex-row items-center justify-between">
           <p className="text-sm text-gray-500">
-            © {new Date().getFullYear()} AccessPath. All rights reserved.
+            © {new Date().getFullYear()} PathAble. All rights reserved.
           </p>
           <p className="text-sm text-gray-500 flex items-center mt-4 md:mt-0">
             Made with <Heart className="h-4 w-4 text-accessOrange mx-1" /> for accessibility

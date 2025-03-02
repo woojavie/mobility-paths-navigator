@@ -1,17 +1,16 @@
-
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Quote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const testimonials = [
   {
-    quote: "AccessPath has completely changed how I navigate my city. For the first time, I can plan trips with confidence knowing I'll have accessible routes.",
+    quote: "PathAble has completely changed how I navigate my city. For the first time, I can plan trips with confidence knowing I'll have accessible routes.",
     name: "Sarah Johnson",
     role: "Wheelchair user for 15 years",
     image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80"
   },
   {
-    quote: "As a caregiver, I rely on AccessPath to find wheelchair-accessible routes when taking my mother out. The community updates about broken elevators have saved us so many times!",
+    quote: "As a caregiver, I rely on PathAble to find wheelchair-accessible routes when taking my mother out. The community updates about broken elevators have saved us so many times!",
     name: "Michael Chen",
     role: "Caregiver",
     image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80"
@@ -41,7 +40,7 @@ const TestimonialsSection = () => {
         <div className="text-center max-w-3xl mx-auto mb-12">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Voices from our community</h2>
           <p className="text-xl text-gray-600">
-            Hear from people who are using AccessPath to navigate their world with confidence.
+            Hear from people who are using PathAble to navigate their world with confidence.
           </p>
         </div>
         

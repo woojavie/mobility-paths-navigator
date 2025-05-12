@@ -1,69 +1,24 @@
-# Welcome to your Lovable project
+## Inspiration
+Navigating urban spaces can be difficult for wheelchair users and those with mobility challenges. While Google Maps provides some accessibility options, many paths still contain unexpected obstacles like stairs or steep inclines. We wanted to create a reliable, accessible routing solution that ensures wheelchair users have clear, safe, and barrier-free paths.
 
-## Project info
+## What it does
+PathAble is a wheelchair-accessible route planner that generates optimized walking and transit routes while avoiding stairs, steep inclines, and inaccessible paths. It integrates Google Maps APIs, Elevation Data, and Accessibility Filters to provide:
 
-**URL**: https://lovable.dev/projects/9d826bd1-a734-4b69-bf9d-547c42825625
+- Wheelchair-friendly walking routes that avoid stairs and steep inclines.
+- Public transit routes that prioritize accessible stations and fewer transfers.
+- Dynamic rerouting based on accessibility constraints.
+- User-generated reports on obstacles (e.g., broken elevators, blocked pathways).
 
-## How can I edit this code?
+## How we built it
+Utilized various Google cloud-related APIs, as well as Lovable and Cursor. 
 
-There are several ways of editing your application.
+## Challenges we ran into
+- Lack of direct accessibility data
+- Snap-to-Roads limitations – The API works well for driving but struggles with pedestrian paths.
+- Query limits – Google’s API usage limits required optimizations in our API calls.
 
-**Use Lovable**
+## Accomplishments that we're proud of
+We learned how to utilize various AI tools to help with our project.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/9d826bd1-a734-4b69-bf9d-547c42825625) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/9d826bd1-a734-4b69-bf9d-547c42825625) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+## What we learned
+Implementing Google Maps API into a web-dev app, utilizing various AI tools such as Lovable, Cursor, Claude and debugging AI-generated code.
